@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Hub – Agent Bridge</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #fff;
+      color: #111;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .header-icon {
+      width: 32px;
+      height: 32px;
+      background: #f3f4f6;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .header h1 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .header p {
+      font-size: 11px;
+      color: #6b7280;
+    }
+
+    .status-section {
+      margin-bottom: 16px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+    }
+    .status-label {
+      font-size: 13px;
+      color: #374151;
+    }
+    .status-badge {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 9999px;
+    }
+    .badge-connected {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .badge-disconnected {
+      background: #f3f4f6;
+      color: #9ca3af;
+    }
+    .badge-connecting {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .providers {
+      margin-bottom: 16px;
+    }
+    .providers h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .provider-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-bottom: 4px;
+    }
+    .provider-item.chatgpt { background: #f0fdf4; }
+    .provider-item.gemini { background: #eff6ff; }
+    .provider-item.grok { background: #fff7ed; }
+
+    .provider-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .provider-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .dot-active { background: #22c55e; }
+    .dot-inactive { background: #d1d5db; }
+
+    .footer {
+      text-align: center;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+    .footer a {
+      font-size: 12px;
+      color: #6b7280;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      color: #111;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="header-icon">🤖</div>
+    <div>
+      <h1>AI Hub – Agent Bridge</h1>
+      <p>Multi-model orchestration</p>
+    </div>
+  </div>
+
+  <div class="status-section">
+    <div class="status-row">
+      <span class="status-label">WebSocket Bus</span>
+      <span id="ws-status" class="status-badge badge-disconnected">Disconnected</span>
+    </div>
+  </div>
+
+  <div class="providers">
+    <h2>Provider Tabs</h2>
+    <div class="provider-item chatgpt">
+      <span class="provider-name">ChatGPT</span>
+      <div id="dot-chatgpt" class="provider-dot dot-inactive"></div>
+    </div>
+    <div class="provider-item gemini">
+      <span class="provider-name">Gemini</span>
+      <div id="dot-gemini" class="provider-dot dot-inactive"></div>
+    </div>
+    <div class="provider-item grok">
+      <span class="provider-name">Grok</span>
+      <div id="dot-grok" class="provider-dot dot-inactive"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <a href="http://localhost:3000/agent" target="_blank">Open AI Hub Dashboard →</a>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

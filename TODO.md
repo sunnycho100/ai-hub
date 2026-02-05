@@ -30,43 +30,43 @@ Each section represents a milestone suitable for a standalone Git commit.
 ---
 
 ### Milestone 3 – Chrome Extension Skeleton
-- [ ] Manifest v3 setup
-- [ ] Background service worker
-- [ ] Provider registration (`HELLO_PROVIDER`)
-- [ ] WS connection from extension
-- [ ] Show connected providers in HubAI UI
+- [x] Manifest v3 setup
+- [x] Background service worker
+- [x] Provider registration (`HELLO_PROVIDER`)
+- [x] WS connection from extension
+- [x] Show connected providers in HubAI UI
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
 ### Milestone 4 – ChatGPT Provider Automation
-- [ ] Detect ChatGPT tab
-- [ ] Paste prompt into input
-- [ ] Auto-click send
-- [ ] Extract assistant messages
-- [ ] Emit `NEW_MESSAGE` events
-- [ ] Error handling for selector failures
+- [x] Detect ChatGPT tab
+- [x] Paste prompt into input
+- [x] Auto-click send
+- [x] Extract assistant messages
+- [x] Emit `NEW_MESSAGE` events
+- [x] Error handling for selector failures
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
 ### Milestone 5 – Gemini Provider Automation
-- [ ] Paste + auto-send
-- [ ] Extract assistant messages
-- [ ] Emit provider health signals
+- [x] Paste + auto-send
+- [x] Extract assistant messages
+- [x] Emit provider health signals
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
 ### Milestone 6 – Grok Provider Automation
-- [ ] Paste + auto-send
-- [ ] Extract assistant messages
-- [ ] Emit provider health signals
+- [x] Paste + auto-send
+- [x] Extract assistant messages
+- [x] Emit provider health signals
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
@@ -94,6 +94,11 @@ Each section represents a milestone suitable for a standalone Git commit.
 ## Implementation History
 
 ### Completed
+- ✅ Milestones 3–6: Chrome Extension + All 3 Providers (v0.0.5)
+  - Manifest v3 extension with background service worker
+  - ChatGPT, Gemini, Grok content scripts (paste, send, scrape)
+  - Extension popup UI with connection status
+  - Full message protocol implementation
 - ✅ Milestone 1: Local Message Bus (v0.0.4)
   - WebSocket broadcast server on port 3333
   - Browser WS client with auto-reconnect

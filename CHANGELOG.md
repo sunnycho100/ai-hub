@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.5] - 2026-02-05 - Add Chrome extension skeleton + provider automation scripts
+
+### Added
+- **Chrome Extension** (Manifest v3) in `extension/` directory:
+  - `manifest.json` — MV3 config with host permissions for ChatGPT, Gemini, Grok
+  - `background.js` — Service worker: WS bus connection, tab registry, message routing
+  - `providers/chatgpt.js` — Content script: auto-paste, auto-send, DOM response scraping
+  - `providers/gemini.js` — Content script: Gemini-specific selectors and automation
+  - `providers/grok.js` — Content script: Grok-specific selectors and automation
+  - `popup.html` + `popup.js` — Extension popup showing WS status and connected providers
+  - `icons/` — Generated PNG icons (16/48/128px) with generator script
+- All three provider scripts implement the full message protocol: `HELLO_PROVIDER`, `SEND_PROMPT`, `PROMPT_SENT`, `NEW_MESSAGE`, `ERROR`
+- Background worker handles tab lifecycle (cleanup on tab close) and status broadcasting
+
+---
+
 ## [0.0.4] - 2026-02-05 - Implement agent orchestrator UI + local message bus
 
 ### Added
