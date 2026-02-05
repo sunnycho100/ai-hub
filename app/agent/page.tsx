@@ -60,6 +60,7 @@ export default function AgentPage() {
   const [pastRuns, setPastRuns] = useState<Run[]>([]);
   const [connectedProviders, setConnectedProviders] = useState<Provider[]>([]);
   const [sendingProviders, setSendingProviders] = useState<Provider[]>([]);
+  const [providerErrors, setProviderErrors] = useState<Record<string, { code: string; message: string }>>({});
   const [showHistory, setShowHistory] = useState(false);
 
   // Ref to current run for use in callbacks
@@ -108,6 +109,13 @@ export default function AgentPage() {
           console.error(
             `[agent] Error from ${msg.provider}: ${msg.code} – ${msg.message}`
           );
+          // Show error visually
+          setProviderErrors((prev) => ({
+            ...prev,
+            [msg.provider]: { code: msg.code, message: msg.message },
+          }));
+          // Clear the sending state for this provider
+          setSendingProviders((prev) => prev.filter((p) => p !== msg.provider));
           break;
 
         case "PING_ACK":
@@ -189,6 +197,7 @@ export default function AgentPage() {
     run.status = "R1_SENDING";
     setCurrentRun(run);
     setSendingProviders([...PROVIDERS]);
+    setProviderErrors({}); // Clear previous errors
 
     for (const provider of PROVIDERS) {
       const promptText = buildR1Prompt(topic, mode);
@@ -310,6 +319,7 @@ export default function AgentPage() {
     setCurrentRun(null);
     setTopic("");
     setSendingProviders([]);
+    setProviderErrors({});
   }, []);
 
   const runStatus: RunStatus = currentRun?.status || "IDLE";
@@ -431,6 +441,25 @@ export default function AgentPage() {
         />
       </div>
 
+      {/* Error Banner */}
+      {Object.keys(providerErrors).length > 0 && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+          <h3 className="text-sm font-semibold text-red-800 mb-2">Pipeline Errors</h3>
+          {Object.entries(providerErrors).map(([provider, err]) => (
+            <div key={provider} className="text-xs text-red-700 mb-1">
+              <span className="font-medium">{PROVIDER_LABELS[provider as Provider]}:</span>{" "}
+              <span className="font-mono">{err.code}</span> — {err.message}
+            </div>
+          ))}
+          <button
+            onClick={() => setProviderErrors({})}
+            className="mt-2 text-xs text-red-500 hover:text-red-700 underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Agent Panels (3 columns) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {PROVIDERS.map((provider) => (
@@ -440,6 +469,7 @@ export default function AgentPage() {
             messages={messages}
             isConnected={connectedProviders.includes(provider)}
             isSending={sendingProviders.includes(provider)}
+            error={providerErrors[provider]}
             currentRound={
               runStatus.startsWith("R")
                 ? (parseInt(runStatus[1]) as Round)

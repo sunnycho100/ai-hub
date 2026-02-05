@@ -66,52 +66,34 @@ function connectWS() {
       return;
     }
 
-    console.log("[bg] ← bus:", msg.type, msg.provider || "");
+    console.log("[bg] ← bus:", msg.type);
 
     switch (msg.type) {
       case "SEND_PROMPT": {
         // Route to the correct tab's content script
         const info = tabRegistry.get(msg.provider);
         if (!info) {
-          console.error("[bg] ❌ No tab registered for " + msg.provider);
-          console.log("[bg] Registry:", JSON.stringify(Object.fromEntries(tabRegistry)));
           wsSend({
             type: "ERROR",
             provider: msg.provider,
             code: "TAB_NOT_FOUND",
-            message: `No registered tab for ${msg.provider}. Open ${msg.provider} in a tab and make sure you're logged in.`,
+            message: `No registered tab for ${msg.provider}`,
           });
           return;
         }
-
-        // Verify tab still exists before sending
-        chrome.tabs.get(info.tabId, (tab) => {
-          if (chrome.runtime.lastError || !tab) {
-            console.error("[bg] ❌ Tab " + info.tabId + " for " + msg.provider + " no longer exists");
-            tabRegistry.delete(msg.provider);
+        chrome.tabs.sendMessage(info.tabId, msg, (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn(
+              `[bg] failed to send to ${msg.provider} tab:`,
+              chrome.runtime.lastError.message
+            );
             wsSend({
               type: "ERROR",
               provider: msg.provider,
-              code: "TAB_CLOSED",
-              message: `${msg.provider} tab was closed. Please reopen it.`,
+              code: "SEND_FAILED",
+              message: chrome.runtime.lastError.message,
             });
-            return;
           }
-
-          console.log("[bg] 📤 Sending SEND_PROMPT to " + msg.provider + " tab " + info.tabId);
-          chrome.tabs.sendMessage(info.tabId, msg, (response) => {
-            if (chrome.runtime.lastError) {
-              console.error("[bg] ❌ Failed to send to " + msg.provider + ":", chrome.runtime.lastError.message);
-              wsSend({
-                type: "ERROR",
-                provider: msg.provider,
-                code: "SEND_FAILED",
-                message: `Could not reach ${msg.provider} content script: ${chrome.runtime.lastError.message}. Try refreshing the tab.`,
-              });
-            } else {
-              console.log("[bg] ✅ SEND_PROMPT delivered to " + msg.provider);
-            }
-          });
         });
         break;
       }
@@ -173,7 +155,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
 
       console.log(
-        `[bg] ✅ registered ${msg.provider} → tab ${tabId} (${tabRegistry.size} total)`
+        `[bg] registered ${msg.provider} → tab ${tabId} (${tabRegistry.size} total)`
       );
 
       // Forward to HubAI via bus
@@ -192,7 +174,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     case "PROMPT_SENT":
     case "ERROR":
       // Forward directly to the bus
-      console.log("[bg] → forwarding " + msg.type + " from " + (msg.provider || "?") + " to bus");
       wsSend(msg);
       sendResponse({ ok: true });
       break;

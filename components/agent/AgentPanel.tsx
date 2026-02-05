@@ -10,6 +10,7 @@ interface AgentPanelProps {
   messages: TranscriptMessage[];
   isConnected: boolean;
   isSending: boolean;
+  error?: { code: string; message: string };
   currentRound: Round | null;
 }
 
@@ -36,6 +37,7 @@ export function AgentPanel({
   messages,
   isConnected,
   isSending,
+  error,
   currentRound,
 }: AgentPanelProps) {
   const providerMessages = messages.filter(
@@ -72,7 +74,12 @@ export function AgentPanel({
         </div>
       </CardHeader>
       <CardContent>
-        {providerMessages.length === 0 ? (
+        {error ? (
+          <div className="text-sm text-center py-6">
+            <div className="text-red-500 font-mono text-xs mb-1">{error.code}</div>
+            <div className="text-red-600 text-xs">{error.message}</div>
+          </div>
+        ) : providerMessages.length === 0 ? (
           <div className="text-sm text-gray-400 italic text-center py-8">
             {isSending
               ? "Waiting for response..."

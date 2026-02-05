@@ -13,6 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.6] - 2026-02-05 - Debug pipeline: fix content scripts, error visibility, tab validation
+
+### Fixed
+- **Content scripts (v2 rewrite)** — All 3 provider scripts rewritten with:
+  - 8+ fallback CSS selectors per element (input, send button, assistant messages)
+  - 5-strategy text insertion: native setter, direct value, execCommand, InputEvent, innerHTML
+  - Enter key fallback when send button is not found
+  - MutationObserver + polling hybrid for response detection
+  - On-page debug overlay showing real-time step-by-step status
+  - SPA hydration retry (2s delay if input not found initially)
+- **Error visibility** — Agent page now shows errors from providers:
+  - `providerErrors` state with red banner above agent panels
+  - AgentPanel displays errors inline with code and message
+  - Sending state clears when error arrives
+  - Errors clear on new run
+- **Background script** — Added `chrome.tabs.get()` check before sending messages:
+  - Returns `TAB_CLOSED` error if provider tab was closed
+  - Returns `SEND_FAILED` with refresh instructions if content script unreachable
+  - Detailed logging for every message route
+
+### Added
+- `tools/ws-bus/monitor.js` — Diagnostic tool to watch all WS bus traffic in real time
+- `terminalog.md` — Pipeline debug log documenting all diagnosed issues and fixes
+
+---
+
 ## [0.0.5] - 2026-02-05 - Add Chrome extension skeleton + provider automation scripts
 
 ### Added

@@ -82,18 +82,30 @@ Each section represents a milestone suitable for a standalone Git commit.
 ---
 
 ### Milestone 8 – Debugging & Stability
+- [x] Pipeline debug analysis and root cause identification
+- [x] Content script v2 rewrite (multi-strategy selectors + paste fallbacks)
+- [x] Error visibility in agent UI (error banner + inline errors)
+- [x] Tab validity checking in background script
+- [x] On-page debug overlay in provider tabs
+- [x] WS bus diagnostic monitor tool
 - [ ] Provider selector versioning
 - [ ] Manual resend controls
 - [ ] Paste-only fallback mode
 - [ ] Transcript export (JSON)
 
-**Status:** ⬜ Not started
+**Status:** 🔶 In Progress
 
 ---
 
 ## Implementation History
 
 ### Completed
+- ✅ Milestone 8 (partial): Pipeline Debugging & Fixes (v0.0.6)
+  - Root cause: stale selectors + silent error swallowing + no tab validation
+  - Content scripts v2: 8+ fallback selectors, 5-strategy paste, debug overlay
+  - Error visibility: providerErrors state, red banner, inline AgentPanel errors
+  - Background script: chrome.tabs.get() validation, detailed logging
+  - WS bus diagnostic monitor tool
 - ✅ Milestones 3–6: Chrome Extension + All 3 Providers (v0.0.5)
   - Manifest v3 extension with background service worker
   - ChatGPT, Gemini, Grok content scripts (paste, send, scrape)
