@@ -128,132 +128,43 @@ function findElement(selectors, label) {
   return null;
 }
 
-// --- Select all content in a contenteditable element ---
-
-function selectAllContent(el) {
-  el.focus();
-  var range = document.createRange();
-  range.selectNodeContents(el);
-  var sel = window.getSelection();
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-// --- Insert text (multi-strategy) ---
-// Grok primarily uses textarea but may switch to contenteditable.
-// For textarea: native setter is primary (bypasses React).
-// For contenteditable: Selection API + execCommand.
+// --- Insert text (simple, proven approach) ---
 
 function insertText(el, text) {
   var strategies = [];
-  var isEditable = el.getAttribute("contenteditable") === "true";
-  var isTextInput = el.tagName === "TEXTAREA" || el.tagName === "INPUT";
 
-  // --- Textarea / Input path (React controlled) ---
-  if (isTextInput) {
-    // Strategy 1: Native prototype setter (bypasses React's override)
-    try {
-      var proto = el.tagName === "TEXTAREA"
-        ? window.HTMLTextAreaElement.prototype
-        : window.HTMLInputElement.prototype;
-      var desc = Object.getOwnPropertyDescriptor(proto, "value");
-      if (desc && desc.set) {
-        desc.set.call(el, text);
-        el.dispatchEvent(new Event("input", { bubbles: true }));
-        if (el.value === text) {
-          strategies.push("native-setter OK");
-          return { success: true, strategies: strategies };
-        }
-      }
-    } catch (e) {
-      strategies.push("native-setter FAIL " + e.message);
-    }
-
-    // Strategy 2: Focus → select all → execCommand
+  if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
+    // Textarea / Input path
     try {
       el.focus();
-      el.select();
-      var ok = document.execCommand("insertText", false, text);
-      if (ok && el.value === text) {
-        strategies.push("textarea-execCommand OK");
-        return { success: true, strategies: strategies };
-      }
-      strategies.push("textarea-execCommand returned " + ok);
-    } catch (e) {
-      strategies.push("textarea-execCommand FAIL " + e.message);
-    }
-
-    // Strategy 3: Direct value set
-    try {
       el.value = text;
       el.dispatchEvent(new Event("input", { bubbles: true }));
-      if (el.value === text) {
-        strategies.push("direct-value OK");
-        return { success: true, strategies: strategies };
-      }
+      strategies.push("direct-value OK");
+      return { success: true, strategies: strategies };
     } catch (e) {
       strategies.push("direct-value FAIL " + e.message);
     }
-  }
-
-  // --- Contenteditable path ---
-  if (isEditable) {
-    // Strategy 1: Select all → execCommand insertText
+  } else {
+    // ContentEditable path
     try {
-      selectAllContent(el);
-      var ok2 = document.execCommand("insertText", false, text);
-      var content = (el.textContent || "").trim();
-      if (ok2 && content.length > 0) {
-        strategies.push("select+execCommand OK");
+      el.focus();
+      el.textContent = "";
+      var ok = document.execCommand("insertText", false, text);
+      if (ok && (el.textContent || "").trim().length > 0) {
+        strategies.push("clear+execCommand OK");
         return { success: true, strategies: strategies };
       }
-      strategies.push("select+execCommand returned " + ok2 + " len=" + content.length);
+      strategies.push("clear+execCommand returned " + ok);
     } catch (e) {
-      strategies.push("select+execCommand FAIL " + e.message);
+      strategies.push("clear+execCommand FAIL " + e.message);
     }
 
-    // Strategy 2: Select all → delete → execCommand
-    try {
-      selectAllContent(el);
-      document.execCommand("delete", false, null);
-      var ok3 = document.execCommand("insertText", false, text);
-      var content2 = (el.textContent || "").trim();
-      if (ok3 && content2.length > 0) {
-        strategies.push("delete+execCommand OK");
-        return { success: true, strategies: strategies };
-      }
-      strategies.push("delete+execCommand returned " + ok3);
-    } catch (e) {
-      strategies.push("delete+execCommand FAIL " + e.message);
-    }
-
-    // Strategy 3: Clipboard paste simulation
-    try {
-      selectAllContent(el);
-      var dt = new DataTransfer();
-      dt.setData("text/plain", text);
-      var pasteEvt = new ClipboardEvent("paste", {
-        clipboardData: dt,
-        bubbles: true,
-        cancelable: true,
-      });
-      el.dispatchEvent(pasteEvt);
-      var content3 = (el.textContent || "").trim();
-      if (content3.length > 0 && content3 !== el.getAttribute("data-placeholder")) {
-        strategies.push("paste-event OK");
-        return { success: true, strategies: strategies };
-      }
-      strategies.push("paste-event (dispatched, len=" + content3.length + ")");
-    } catch (e) {
-      strategies.push("paste-event FAIL " + e.message);
-    }
-
-    // Strategy 4: Last resort - innerHTML
+    // Fallback: innerHTML
     try {
       el.focus();
       el.innerHTML = "<p>" + text.replace(/\n/g, "</p><p>") + "</p>";
       el.dispatchEvent(new Event("input", { bubbles: true }));
-      strategies.push("innerHTML-force OK");
+      strategies.push("innerHTML-fallback OK");
       return { success: true, strategies: strategies };
     } catch (e) {
       strategies.push("innerHTML FAIL " + e.message);
