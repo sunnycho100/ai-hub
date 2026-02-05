@@ -13,6 +13,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.2] - 2026-02-05 - Add CHANGELOG.md for version tracking
+
+### Added
+- Created CHANGELOG.md to track all version changes
+- Documented changelog format and versioning conventions
+
+---
+
 ## [0.0.1] - 2026-02-05 - Initial commit
 
 ### Added

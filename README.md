@@ -118,6 +118,12 @@ ai-hub/
 
 ## Application Routes
 
+**Important**: The application uses true Next.js routing with URL changes. Each route is a separate page:
+- Navigation changes the browser URL (e.g., aihub.com → aihub.com/agent)
+- Browser back/forward buttons work as expected
+- Each page can be bookmarked and shared
+- No single-page navigation - full page transitions
+
 | Route | Description | Status |
 |-------|-------------|--------|
 | `/` | Landing page | Implemented |
