@@ -8,24 +8,24 @@ Each section represents a milestone suitable for a standalone Git commit.
 ## Phase 1 – Agent Communication (Hybrid Web + Chrome Extension)
 
 ### Milestone 1 – Local Message Bus
-- [ ] Create WebSocket server (`ws://localhost:3333`)
-- [ ] Add HubAI WebSocket client
-- [ ] Display connection status on `/agent`
-- [ ] Test PING / ACK messaging
+- [x] Create WebSocket server (`ws://localhost:3333`)
+- [x] Add HubAI WebSocket client
+- [x] Display connection status on `/agent`
+- [x] Test PING / ACK messaging
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
 ### Milestone 2 – Agent Orchestrator UI (Frontend Only)
-- [ ] Topic input
-- [ ] Debate / Collaboration mode toggle
-- [ ] Round indicator (R1 / R2 / R3)
-- [ ] Agent panels (ChatGPT / Gemini / Grok)
-- [ ] Transcript timeline
-- [ ] LocalStorage-based run persistence
+- [x] Topic input
+- [x] Debate / Collaboration mode toggle
+- [x] Round indicator (R1 / R2 / R3)
+- [x] Agent panels (ChatGPT / Gemini / Grok)
+- [x] Transcript timeline
+- [x] LocalStorage-based run persistence
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
@@ -94,6 +94,19 @@ Each section represents a milestone suitable for a standalone Git commit.
 ## Implementation History
 
 ### Completed
+- ✅ Milestone 1: Local Message Bus (v0.0.4)
+  - WebSocket broadcast server on port 3333
+  - Browser WS client with auto-reconnect
+  - Connection status indicator in UI
+- ✅ Milestone 2: Agent Orchestrator UI (v0.0.4)
+  - Full /agent page with topic input, mode toggle, round indicators
+  - 3 agent panels (ChatGPT / Gemini / Grok) with color-coded UI
+  - Transcript timeline with chronological message display
+  - Run state machine (IDLE → R1 → R2 → R3 → DONE)
+  - Mock run mode for local testing without Chrome extension
+  - localStorage-based run persistence with history panel
+  - Prompt templates for all 3 rounds (debate & collaboration)
+  - TypeScript message protocol for WS communication
 - ✅ Phase 0: Project setup and landing page (v0.0.1)
   - Next.js 16 with App Router
   - Tailwind CSS v4

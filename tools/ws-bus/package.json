@@ -1,0 +1,10 @@
+{
+  "name": "ai-hub-ws-bus",
+  "version": "1.0.0",
+  "description": "Local WebSocket message bus for AI Hub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {}
+}

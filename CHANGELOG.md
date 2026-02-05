@@ -13,6 +13,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.4] - 2026-02-05 - Implement agent orchestrator UI + local message bus
+
+### Added
+- **WebSocket Message Bus** (`tools/ws-bus/server.js`): Broadcast relay server on `ws://localhost:3333` with PING/ACK support
+- **WS Client** (`lib/ws.ts`, `lib/useWebSocket.ts`): Browser-side WebSocket client with auto-reconnect and React hook
+- **Type System** (`lib/types.ts`): Full TypeScript types for providers, runs, messages, and the WS message protocol
+- **Prompt Templates** (`lib/prompts.ts`): Round 1/2/3 prompt generators for both debate and collaboration modes
+- **Run Store** (`lib/store.ts`): localStorage-based persistence for runs and transcripts
+- **Agent Page** (`app/agent/page.tsx`): Complete orchestrator UI with:
+  - Topic input and debate/collaboration mode toggle
+  - 3 color-coded agent panels (ChatGPT/Gemini/Grok)
+  - Round indicator (R1/R2/R3) with state-driven styling
+  - Transcript timeline with chronological message display
+  - Run history panel with load/delete functionality
+  - Mock run mode for testing without the Chrome extension
+  - Start/Stop controls with real-time status badges
+- **UI Components**: `AgentPanel`, `TranscriptTimeline`, `RunControls`, `ConnectionStatus`
+- **Package scripts**: `npm run bus`, `npm run dev:all` (concurrently runs Next.js + WS bus)
+- Installed `ws`, `concurrently`, `@types/ws`
+
+---
+
 ## [0.0.3] - 2026-02-05 - Plan Phase 1: Agent Communication architecture
 
 ### Added
