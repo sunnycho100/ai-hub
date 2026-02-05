@@ -240,7 +240,33 @@ function broadcastStatus() {
     .catch(() => {}); // popup may not be open
 }
 
+// ─── Keepalive (prevents MV3 service worker termination) ──
+
+// Chrome terminates MV3 service workers after ~30s of inactivity,
+// killing WebSocket connections. Alarms keep it alive.
+chrome.alarms.create("ws-keepalive", { periodInMinutes: 0.45 });
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "ws-keepalive") {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.log("[bg] keepalive: reconnecting WS...");
+      connectWS();
+    }
+  }
+});
+
 // ─── Init ──────────────────────────────────────────────────
+
+// Ensure WS connects on extension install/update and Chrome startup
+chrome.runtime.onInstalled.addListener(() => {
+  console.log("[bg] Extension installed/updated – connecting WS");
+  connectWS();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  console.log("[bg] Chrome started – connecting WS");
+  connectWS();
+});
 
 console.log("[bg] AI Hub extension starting...");
 connectWS();
