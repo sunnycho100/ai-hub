@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.3] - 2026-02-05 - Plan Phase 1: Agent Communication architecture
+
+### Added
+- Created TODO.md to track development milestones and progress
+- Defined 8 implementation milestones for Agent Communication (Hybrid Mode)
+- Updated README.md with Agent Communication hybrid architecture details
+  - HubAI orchestrator (Next.js)
+  - Chrome extension for provider automation
+  - Local WebSocket message bus (ws://localhost:3333)
+  - Message protocol and round-based orchestration flow
+
+### Changed
+- Updated project documentation structure (README for overview, TODO for progress tracking)
+
+---
+
 ## [0.0.2] - 2026-02-05 - Add CHANGELOG.md for version tracking
 
 ### Added

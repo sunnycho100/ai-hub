@@ -142,12 +142,21 @@ ai-hub/
 
 ### Planned Features
 
-#### Agent Communication
-- Multi-model conversation interface
-- Model selection (GPT-4, Claude, Gemini, etc.)
+#### Agent Communication (Hybrid Mode)
+**Architecture**: The Agent Communication tool uses a hybrid approach combining Next.js orchestration with a Chrome extension for automated interaction.
+
+**Components**:
+- **HubAI (Next.js `/agent` page)**: Orchestrator and transcript viewer with run controls
+- **Chrome Extension**: Executes actions inside ChatGPT/Gemini/Grok tabs (paste, auto-send, scrape)
+- **Local WebSocket Bus** (`ws://localhost:3333`): Message routing between HubAI and extension
+
+**Features**:
+- Multi-model conversation interface (ChatGPT, Gemini, Grok)
 - Debate mode with multiple AI agents
 - Collaboration mode for problem-solving
-- Conversation history and export
+- 3-round discussion system (R1: Independent answers, R2: Critique & improve, R3: Reconcile)
+- Real-time transcript timeline
+- Conversation history stored in localStorage
 - Citation tracking and source verification
 
 #### AI Verifier
