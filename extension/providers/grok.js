@@ -31,15 +31,10 @@ var SEND_SELECTORS = [
   "form button:last-of-type",
 ];
 
+// Grok uses div.message-bubble for ALL messages (user + assistant).
+// We filter to assistant-only during response check.
 var ASSISTANT_SELECTORS = [
-  '[data-testid="message-text-assistant"]',
-  '[data-testid*="assistant-message"]',
-  '[data-testid="assistant-message"]',
-  '[data-message-role="assistant"]',
-  '[data-role="assistant"]',
-  ".assistant-message",
-  '[class*="response"][class*="message"]',
-  '[class*="assistant"]',
+  'div.message-bubble',
 ];
 
 var MESSAGE_TEXT_SELECTORS = [".markdown", ".prose", ".message-text", '[class*="message-content"]', "div[dir=\"auto\"]", "p"];
@@ -134,7 +129,24 @@ function insertText(el, text) {
   var strategies = [];
 
   if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
-    // Textarea / Input path
+    // React textarea requires nativeValueSetter to trigger state updates
+    try {
+      var proto = el.tagName === "TEXTAREA"
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      var nativeSetter = Object.getOwnPropertyDescriptor(proto, "value").set;
+      el.focus();
+      nativeSetter.call(el, text);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      if (el.value === text) {
+        strategies.push("nativeValueSetter OK");
+        return { success: true, strategies: strategies };
+      }
+      strategies.push("nativeValueSetter value mismatch");
+    } catch (e) {
+      strategies.push("nativeValueSetter FAIL " + e.message);
+    }
+    // Fallback: direct value
     try {
       el.focus();
       el.value = text;
@@ -310,64 +322,55 @@ function startResponseObserver() {
   if (responseCheckInterval) clearInterval(responseCheckInterval);
 
   var checkForResponse = function () {
-    var messages = null;
-    for (var i = 0; i < ASSISTANT_SELECTORS.length; i++) {
-      try {
-        var found = document.querySelectorAll(ASSISTANT_SELECTORS[i]);
-        if (found.length > 0) {
-          messages = found;
-          break;
-        }
-      } catch (e) {
-        /* skip */
+    var messages = document.querySelectorAll('div.message-bubble');
+    console.log("[" + PROVIDER + "] poll: " + messages.length + " message-bubbles, lastCount=" + lastMessageCount);
+
+    if (!messages || messages.length <= lastMessageCount) return false;
+
+    // div.message-bubble captures ALL messages (user + assistant).
+    // We need to find the latest ASSISTANT bubble.
+    // Strategy: iterate from end, skip user messages.
+    var latestAssistant = null;
+    for (var k = messages.length - 1; k >= 0; k--) {
+      var bubble = messages[k];
+      var hasMarkdown = bubble.querySelector('.markdown, .prose');
+      var hasCodeBlock = bubble.querySelector('pre.shiki, .not-prose');
+      if (hasMarkdown || hasCodeBlock) {
+        latestAssistant = bubble;
+        break;
       }
     }
 
-    if (!messages || messages.length <= lastMessageCount) return false;
-    var latestMsg = messages[messages.length - 1];
+    console.log("[" + PROVIDER + "] latestAssistant found: " + !!latestAssistant);
+
+    if (!latestAssistant) return false;
+    // Check if this is a new message (not one we already scraped)
+    if (latestAssistant._aihubScraped) return false;
 
     var text = "";
     for (var j = 0; j < MESSAGE_TEXT_SELECTORS.length; j++) {
-      var textEl = latestMsg.querySelector(MESSAGE_TEXT_SELECTORS[j]);
+      var textEl = latestAssistant.querySelector(MESSAGE_TEXT_SELECTORS[j]);
       if (textEl && textEl.textContent.trim()) {
         text = textEl.textContent.trim();
         break;
       }
     }
-    if (!text) text = (latestMsg.textContent || "").trim();
+    if (!text) text = (latestAssistant.textContent || "").trim();
     if (text.length === 0) return false;
 
-    var isStreaming = !!document.querySelector(
-      '.loading-indicator, [class*="loading"], [class*="typing"]'
-    );
-    if (isStreaming) return false;
-
     // Content stability check: wait for text to stop changing
-    if (!latestMsg._lastTextLen) {
-      latestMsg._lastTextLen = text.length;
-      latestMsg._stableCount = 0;
+    if (!latestAssistant._lastTextLen) {
+      latestAssistant._lastTextLen = text.length;
+      latestAssistant._stableCount = 0;
       return false;
     }
-    if (text.length !== latestMsg._lastTextLen) {
-      latestMsg._lastTextLen = text.length;
-      latestMsg._stableCount = 0;
+    if (text.length !== latestAssistant._lastTextLen) {
+      latestAssistant._lastTextLen = text.length;
+      latestAssistant._stableCount = 0;
       return false;
     }
-    latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
-    if (latestMsg._stableCount < 2) return false; // need 2 stable polls (~4s)
-
-    // Heuristic: div.message-bubble captures ALL messages (user + assistant).
-    // Grok assistant responses contain .response-content-markdown or bg-surface-l1.
-    // Only send if latest is from assistant (not user's own message).
-    var isAssistant = !!latestMsg.querySelector('.response-content-markdown') ||
-      !!latestMsg.closest('[class*="bg-surface-l1"]') ||
-      !latestMsg.classList.contains('max-w-none');
-
-    if (!isAssistant) {
-      console.log("[" + PROVIDER + "] skipping non-assistant message-bubble");
-      lastMessageCount = messages.length;
-      return false;
-    }
+    latestAssistant._stableCount = (latestAssistant._stableCount || 0) + 1;
+    if (latestAssistant._stableCount < 2) return false; // need 2 stable polls (~4s)
 
     chrome.runtime.sendMessage({
       type: "NEW_MESSAGE",
@@ -382,6 +385,7 @@ function startResponseObserver() {
     showDebug(
       "Round " + currentRound + ": Got response (" + text.length + " chars)"
     );
+    latestAssistant._aihubScraped = true;
     lastMessageCount = messages.length;
     if (observer) {
       observer.disconnect();

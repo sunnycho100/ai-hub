@@ -38,20 +38,15 @@ var SEND_SELECTORS = [
 
 var ASSISTANT_SELECTORS = [
   "model-response",
-  ".model-response-text",
-  "model-response .response-container",
-  'message-content[class*="model"]',
-  '.response-container .markdown',
-  '[data-message-author="model"]',
-  '.conversation-container .model-response',
 ];
 
 var MESSAGE_TEXT_SELECTORS = [
+  "message-content.model-response-text .markdown.markdown-main-panel",
+  "message-content.model-response-text .markdown",
   ".markdown.markdown-main-panel",
   ".markdown-main-panel",
+  "message-content .markdown",
   ".markdown",
-  ".response-text",
-  ".model-response-text .markdown",
   "p",
 ];
 
@@ -317,18 +312,9 @@ function startResponseObserver() {
   if (responseCheckInterval) clearInterval(responseCheckInterval);
 
   var checkForResponse = function () {
-    var messages = null;
-    for (var i = 0; i < ASSISTANT_SELECTORS.length; i++) {
-      try {
-        var found = document.querySelectorAll(ASSISTANT_SELECTORS[i]);
-        if (found.length > 0) {
-          messages = found;
-          break;
-        }
-      } catch (e) {
-        /* skip */
-      }
-    }
+    // Find model-response elements
+    var messages = document.querySelectorAll('model-response');
+    console.log("[" + PROVIDER + "] poll: " + messages.length + " model-response elements, lastCount=" + lastMessageCount);
 
     if (!messages || messages.length <= lastMessageCount) return false;
     var latestMsg = messages[messages.length - 1];
@@ -338,22 +324,26 @@ function startResponseObserver() {
       var textEl = latestMsg.querySelector(MESSAGE_TEXT_SELECTORS[j]);
       if (textEl && textEl.textContent.trim()) {
         text = textEl.textContent.trim();
+        console.log("[" + PROVIDER + "] text found with: " + MESSAGE_TEXT_SELECTORS[j] + " (" + text.length + " chars)");
         break;
       }
     }
     if (!text) text = (latestMsg.textContent || "").trim();
-    if (text.length === 0) return false;
+    if (text.length === 0) {
+      console.log("[" + PROVIDER + "] no text content yet");
+      return false;
+    }
 
-    // Gemini streaming indicators: loading dots, progress bars, thinking status
-    var isStreaming =
-      !!document.querySelector('.loading-indicator') ||
-      !!document.querySelector('model-response .progress') ||
-      !!document.querySelector('.thinking-indicator') ||
-      !!document.querySelector('[class*="loading"]') ||
-      !!document.querySelector('mat-progress-bar') ||
-      !!latestMsg.querySelector('.loading') ||
-      !!latestMsg.querySelector('[class*="progress"]');
-    if (isStreaming) return false;
+    // Gemini streaming detection (research-backed):
+    var hasStopBtn = !!document.querySelector('button[aria-label*="Stop"]');
+    var hasSpinner = !!document.querySelector('mat-spinner') || !!document.querySelector('[role="progressbar"]');
+    var hasActions = !!latestMsg.querySelector('message-actions');
+    console.log("[" + PROVIDER + "] streaming check: stopBtn=" + hasStopBtn + " spinner=" + hasSpinner + " hasActions=" + hasActions);
+
+    if (hasStopBtn || hasSpinner || !hasActions) {
+      console.log("[" + PROVIDER + "] still streaming, waiting...");
+      return false;
+    }
 
     // Content stability check: wait for text to stop changing
     if (!latestMsg._lastTextLen) {
