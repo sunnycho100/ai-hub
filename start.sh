@@ -66,8 +66,10 @@ else
     echo -e "${GREEN}✓ No cache to clear${NC}"
 fi
 
-# Check if port 3000 is available
-echo -e "\n${BLUE}[4/4]${NC} Checking port 3000..."
+# Check if ports 3000 and 3333 are available
+echo -e "\n${BLUE}[4/4]${NC} Checking required ports..."
+
+# Check port 3000 (Next.js)
 if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo -e "${YELLOW}⚠ Port 3000 is already in use${NC}"
     echo "Attempting to kill process..."
@@ -78,17 +80,29 @@ else
     echo -e "${GREEN}✓ Port 3000 is available${NC}"
 fi
 
+# Check port 3333 (WebSocket bus)
+if lsof -Pi :3333 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    echo -e "${YELLOW}⚠ Port 3333 is already in use${NC}"
+    echo "Attempting to kill process..."
+    lsof -ti:3333 | xargs kill -9 2>/dev/null || true
+    sleep 1
+    echo -e "${GREEN}✓ Port 3333 is now available${NC}"
+else
+    echo -e "${GREEN}✓ Port 3333 is available${NC}"
+fi
+
 # Display startup information
 echo -e "\n${GREEN}════════════════════════════════════════${NC}"
 echo -e "${GREEN}✓ All checks passed!${NC}"
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo ""
-echo -e "${BLUE}Starting AI Hub development server...${NC}"
+echo -e "\n${BLUE}Starting AI Hub development environment...${NC}"
 echo ""
-echo -e "📍 Local:    ${GREEN}http://localhost:3000${NC}"
+echo -e "📍 Web UI:   ${GREEN}http://localhost:3000${NC}"
+echo -e "🔌 WS Bus:   ${GREEN}ws://localhost:3333${NC}"
 echo -e "📱 Network:  Check terminal output below"
 echo ""
-echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
+echo -e "${YELLOW}Press Ctrl+C to stop both servers${NC}"
 echo ""
 echo -e "${BLUE}────────────────────────────────────────${NC}"
 echo ""
@@ -96,5 +110,5 @@ echo ""
 # Open Chrome in the background after a short delay
 (sleep 2 && open -a "Google Chrome" http://localhost:3000) &
 
-# Start the development server
-npm run dev
+# Start both the Next.js app and WebSocket bus
+npm run dev:all
