@@ -12,8 +12,11 @@ var PROVIDER = "grok";
 var INPUT_SELECTORS = [
   'textarea[placeholder*="Ask"]',
   'textarea[placeholder*="ask"]',
+  'textarea[aria-label*="Ask"]',
   'textarea[aria-label*="Message"]',
   'textarea[aria-label*="message"]',
+  'textarea[data-testid="chat-input"]',
+  'textarea[data-testid*="input"]',
   'div[contenteditable="true"][role="textbox"]',
   'div[contenteditable="true"][data-placeholder]',
   "textarea",
@@ -29,14 +32,17 @@ var SEND_SELECTORS = [
 ];
 
 var ASSISTANT_SELECTORS = [
+  '[data-testid="message-text-assistant"]',
+  '[data-testid*="assistant-message"]',
   '[data-testid="assistant-message"]',
+  '[data-message-role="assistant"]',
+  '[data-role="assistant"]',
   ".assistant-message",
   '[class*="response"][class*="message"]',
-  '[data-message-role="assistant"]',
   '[class*="assistant"]',
 ];
 
-var MESSAGE_TEXT_SELECTORS = [".markdown", ".message-text", ".prose", "p"];
+var MESSAGE_TEXT_SELECTORS = [".markdown", ".prose", ".message-text", '[class*="message-content"]', "div[dir=\"auto\"]", "p"];
 
 var lastMessageCount = 0;
 var currentRunId = null;
@@ -425,6 +431,33 @@ function startResponseObserver() {
     );
     if (isStreaming) return false;
 
+    // Content stability check: wait for text to stop changing
+    if (!latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    if (text.length !== latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
+    if (latestMsg._stableCount < 2) return false; // need 2 stable polls (~4s)
+
+    // Heuristic: div.message-bubble captures ALL messages (user + assistant).
+    // Grok assistant responses contain .response-content-markdown or bg-surface-l1.
+    // Only send if latest is from assistant (not user's own message).
+    var isAssistant = !!latestMsg.querySelector('.response-content-markdown') ||
+      !!latestMsg.closest('[class*="bg-surface-l1"]') ||
+      !latestMsg.classList.contains('max-w-none');
+
+    if (!isAssistant) {
+      console.log("[" + PROVIDER + "] skipping non-assistant message-bubble");
+      lastMessageCount = messages.length;
+      return false;
+    }
+
     chrome.runtime.sendMessage({
       type: "NEW_MESSAGE",
       runId: currentRunId,
@@ -451,7 +484,9 @@ function startResponseObserver() {
   };
 
   try {
-    var targetNode = document.querySelector("main") || document.body;
+    var targetNode = document.querySelector('div.overflow-y-auto') ||
+      document.querySelector('.scrollbar-gutter-stable') ||
+      document.querySelector("main") || document.body;
     observer = new MutationObserver(function () {
       checkForResponse();
     });

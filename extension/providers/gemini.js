@@ -10,11 +10,16 @@ var PROVIDER = "gemini";
 
 // Multiple selector strategies
 var INPUT_SELECTORS = [
+  'rich-textarea .ql-editor[contenteditable="true"]',
   '.ql-editor[contenteditable="true"]',
+  'div[contenteditable="true"][aria-label*="Enter a prompt"]',
   'div[contenteditable="true"][aria-label*="prompt"]',
-  'div[contenteditable="true"][aria-label*="Enter"]',
-  'rich-textarea [contenteditable="true"]',
+  'div[contenteditable="true"][data-testid*="input"]',
   'div[contenteditable="true"][role="textbox"]',
+  'rich-textarea [contenteditable="true"]',
+  'textarea[placeholder*="Message Gemini"]',
+  'textarea[placeholder*="Enter a prompt"]',
+  '.input-area div[contenteditable="true"]',
   ".text-input-field textarea",
   'textarea[aria-label*="prompt"]',
   "div.ql-editor",
@@ -22,7 +27,8 @@ var INPUT_SELECTORS = [
 ];
 
 var SEND_SELECTORS = [
-  'button[aria-label="Send message"]',
+  'button.send-button:not([aria-disabled="true"])',
+  'button[aria-label="Send message"]:not([disabled])',
   "button.send-button",
   'button[data-mat-icon-name="send"]',
   'button[aria-label="Send"]',
@@ -31,15 +37,18 @@ var SEND_SELECTORS = [
 ];
 
 var ASSISTANT_SELECTORS = [
+  "model-response",
   ".model-response-text",
   "model-response .response-container",
   'message-content[class*="model"]',
-  ".response-container .markdown",
+  '.response-container .markdown',
   '[data-message-author="model"]',
-  ".conversation-container .model-response",
+  '.conversation-container .model-response',
 ];
 
 var MESSAGE_TEXT_SELECTORS = [
+  ".markdown.markdown-main-panel",
+  ".markdown-main-panel",
   ".markdown",
   ".response-text",
   ".model-response-text .markdown",
@@ -287,6 +296,18 @@ function findSendButton(inputEl) {
   return null;
 }
 
+// --- Aggressive click for Angular Material buttons ---
+
+function aggressiveClick(btn) {
+  var opts = { bubbles: true, cancelable: true };
+  btn.dispatchEvent(new PointerEvent("pointerdown", opts));
+  btn.dispatchEvent(new MouseEvent("mousedown", opts));
+  btn.dispatchEvent(new PointerEvent("pointerup", opts));
+  btn.dispatchEvent(new MouseEvent("mouseup", opts));
+  btn.click();
+  console.log("[" + PROVIDER + "] aggressiveClick on send button");
+}
+
 // --- Enter key fallback ---
 
 function triggerEnterKey(el) {
@@ -367,11 +388,8 @@ async function handleSendPrompt(msg) {
 
     var sendBtn = findSendButton(input);
     if (sendBtn) {
-      sendBtn.click();
-      await sleep(100);
-      sendBtn.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-      await sleep(50);
-      sendBtn.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+      // Angular Material buttons need full pointer event sequence
+      aggressiveClick(sendBtn);
     } else {
       triggerEnterKey(input);
       showDebug("Tried Enter key (no send button)");
@@ -427,10 +445,30 @@ function startResponseObserver() {
     if (!text) text = (latestMsg.textContent || "").trim();
     if (text.length === 0) return false;
 
-    var isStreaming = !!document.querySelector(
-      '.loading-indicator, [class*="loading"], [class*="typing"]'
-    );
+    // Gemini streaming indicators: loading dots, progress bars, thinking status
+    var isStreaming =
+      !!document.querySelector('.loading-indicator') ||
+      !!document.querySelector('model-response .progress') ||
+      !!document.querySelector('.thinking-indicator') ||
+      !!document.querySelector('[class*="loading"]') ||
+      !!document.querySelector('mat-progress-bar') ||
+      !!latestMsg.querySelector('.loading') ||
+      !!latestMsg.querySelector('[class*="progress"]');
     if (isStreaming) return false;
+
+    // Content stability check: wait for text to stop changing
+    if (!latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    if (text.length !== latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
+    if (latestMsg._stableCount < 2) return false; // need 2 stable polls (~4s)
 
     chrome.runtime.sendMessage({
       type: "NEW_MESSAGE",
