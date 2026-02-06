@@ -4,7 +4,7 @@
  * Stores and retrieves runs + transcripts from localStorage.
  */
 
-import { Run, TranscriptMessage } from "./types";
+import { Run, TranscriptMessage, RunSource } from "./types";
 
 const STORAGE_KEY = "ai-hub-runs";
 
@@ -28,12 +28,14 @@ export function saveRuns(runs: Run[]): void {
 /** Create a new run and persist it. Returns the new run. */
 export function createRun(
   topic: string,
-  mode: "debate" | "collaboration"
+  mode: "debate" | "collaboration",
+  source: RunSource = "extension"
 ): Run {
   const run: Run = {
     id: generateId(),
     topic,
     mode,
+    source,
     status: "IDLE",
     messages: [],
     createdAt: Date.now(),

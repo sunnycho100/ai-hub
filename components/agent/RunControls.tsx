@@ -14,6 +14,7 @@ interface RunControlsProps {
   onStart: () => void;
   onStop: () => void;
   onMockRound: () => void;
+  showMock?: boolean;
 }
 
 const STATUS_LABELS: Record<RunStatus, string> = {
@@ -56,6 +57,7 @@ export function RunControls({
   onStart,
   onStop,
   onMockRound,
+  showMock = true,
 }: RunControlsProps) {
   const isRunning = status !== "IDLE" && status !== "DONE" && status !== "ERROR";
   const round = getCurrentRound(status);
@@ -136,7 +138,7 @@ export function RunControls({
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2 ml-auto">
-          {!isRunning && status !== "DONE" && (
+          {showMock && !isRunning && status !== "DONE" && (
             <Button
               size="sm"
               variant="secondary"

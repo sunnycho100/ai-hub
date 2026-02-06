@@ -42,11 +42,14 @@ export interface TranscriptMessage {
   timestamp: number;
 }
 
+/** Run source */
+export type RunSource = "extension" | "api";
 /** A complete run (one topic discussion across 3 rounds) */
 export interface Run {
   id: string;
   topic: string;
   mode: RunMode;
+  source?: RunSource;
   status: RunStatus;
   messages: TranscriptMessage[];
   createdAt: number;
