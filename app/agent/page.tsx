@@ -544,10 +544,6 @@ export default function AgentPage() {
                 New Run
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowHistory(!showHistory)}
             {activeTab === "api" &&
               apiCurrentRun &&
               apiCurrentRun.status === "DONE" && (
