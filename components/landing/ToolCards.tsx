@@ -27,7 +27,7 @@ const tools = [
 export function ToolCards() {
   return (
     <section id="tools" className="container mx-auto px-4 py-16">
-      <h2 className="text-xl font-bold text-white mb-4">Core Tools</h2>
+      <h2 className="text-xl font-bold text-foreground mb-4">Core Tools</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {tools.map((tool) => {
           const Icon = tool.icon;
@@ -35,15 +35,15 @@ export function ToolCards() {
             <Link
               key={tool.title}
               href={tool.href}
-              className="glass rounded-2xl p-5 hover:bg-white/12 transition-colors group"
+              className="rounded-lg border border-border bg-card p-5 hover:bg-accent transition-colors group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-9 w-9 rounded-lg bg-cyan-400/20 flex items-center justify-center">
-                  <Icon className="h-5 w-5 text-cyan-400" />
+                <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center">
+                  <Icon className="h-5 w-5 text-foreground" />
                 </div>
-                <h3 className="text-base font-bold text-white">{tool.title}</h3>
+                <h3 className="text-base font-bold text-card-foreground">{tool.title}</h3>
               </div>
-              <p className="text-sm text-indigo-200">{tool.description}</p>
+              <p className="text-sm text-muted-foreground">{tool.description}</p>
             </Link>
           );
         })}

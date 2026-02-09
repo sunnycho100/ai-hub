@@ -18,17 +18,17 @@ export function ConnectionStatus({
     <div className="flex items-center gap-4 text-xs">
       <div className="flex items-center gap-1.5">
         {wsStatus === "connected" ? (
-          <Wifi className="h-3.5 w-3.5 text-green-400" />
+          <Wifi className="h-3.5 w-3.5 text-foreground" />
         ) : (
-          <WifiOff className="h-3.5 w-3.5 text-white/30" />
+          <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50" />
         )}
         <span
           className={
             wsStatus === "connected"
-              ? "text-green-400 font-medium"
+              ? "text-foreground font-medium"
               : wsStatus === "connecting"
-              ? "text-yellow-400"
-              : "text-white/30"
+              ? "text-muted-foreground"
+              : "text-muted-foreground/50"
           }
         >
           WS:{" "}
@@ -47,10 +47,10 @@ export function ConnectionStatus({
             return (
               <span
                 key={p}
-                className={`px-2 py-0.5 rounded-full text-xs ${
+                className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
                   connected
-                    ? "bg-green-500/20 text-green-400"
-                    : "bg-white/5 text-white/30"
+                    ? "bg-muted text-foreground font-medium"
+                    : "bg-muted text-muted-foreground/50"
                 }`}
               >
                 {PROVIDER_LABELS[p]}

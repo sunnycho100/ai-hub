@@ -501,22 +501,22 @@ export default function AgentPage() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/" className="flex items-center text-white">
+            <Link href="/" className="flex items-center">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-cyan-400/20 flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-cyan-400" />
+            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white">
+              <h1 className="text-xl font-bold text-foreground">
                 {activeTab === "api"
                   ? "Agent Communication (API)"
                   : "Agent Communication"}
               </h1>
-              <p className="text-xs text-indigo-200">
+              <p className="text-xs text-muted-foreground">
                 {activeTab === "api"
                   ? "API-based, turn-taking multi-model discussion"
                   : "Multi-model debate and collaboration"}
@@ -532,8 +532,8 @@ export default function AgentPage() {
               connectedProviders={connectedProviders}
             />
           ) : (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-cyan-400/15 border border-cyan-400/40 text-cyan-300 font-semibold">
-              API Mode Ready
+            <span className="text-xs px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-medium">
+              API Mode
             </span>
           )}
           <div className="flex items-center gap-2">
@@ -569,24 +569,24 @@ export default function AgentPage() {
       {/* Tab Switcher */}
       <div className="mb-6 flex items-center gap-2">
         <button
-          className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
             activeTab === "extension"
-              ? "bg-white/10 text-white border-white/20"
-              : "bg-transparent text-indigo-200 border-white/10 hover:text-white"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-muted-foreground border-input hover:text-foreground"
           }`}
           onClick={() => setActiveTab("extension")}
         >
-          Extension
+          Agent Communication
         </button>
         <button
-          className={`px-3 py-1.5 text-xs font-bold rounded-full border transition-colors ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
             activeTab === "api"
-              ? "bg-cyan-400 text-[#0B1020] border-cyan-400"
-              : "bg-transparent text-indigo-200 border-white/10 hover:text-white"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-background text-muted-foreground border-input hover:text-foreground"
           }`}
           onClick={() => setActiveTab("api")}
         >
-          API
+          Agent Communication (API)
         </button>
       </div>
 
@@ -598,20 +598,20 @@ export default function AgentPage() {
           </CardHeader>
           <CardContent>
             {extensionRuns.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">No past runs.</p>
+              <p className="text-sm text-muted-foreground italic">No past runs.</p>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {extensionRuns.map((run) => (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/10 cursor-pointer group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-accent cursor-pointer group"
                     onClick={() => handleLoadRun(run)}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate text-foreground">
                         {run.topic}
                       </p>
-                      <p className="text-xs text-indigo-300/60">
+                      <p className="text-xs text-muted-foreground">
                         {run.mode} · {run.messages.length} messages ·{" "}
                         {new Date(run.createdAt).toLocaleDateString()} ·{" "}
                         {run.source === "api" ? "API" : "Extension"}
@@ -621,10 +621,10 @@ export default function AgentPage() {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
                           run.status === "DONE"
-                            ? "bg-green-500/20 text-green-400"
+                            ? "bg-muted text-foreground"
                             : run.status === "ERROR"
-                            ? "bg-red-500/20 text-red-400"
-                            : "bg-yellow-500/20 text-yellow-400"
+                            ? "bg-muted text-foreground"
+                            : "bg-muted text-foreground"
                         }`}
                       >
                         {run.status}
@@ -634,9 +634,9 @@ export default function AgentPage() {
                           e.stopPropagation();
                           handleDeleteRun(run.id, run.source ?? "extension");
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
                     </div>
                   </div>
@@ -654,20 +654,20 @@ export default function AgentPage() {
           </CardHeader>
           <CardContent>
             {apiRuns.length === 0 ? (
-              <p className="text-sm text-gray-400 italic">No past runs.</p>
+              <p className="text-sm text-muted-foreground italic">No past runs.</p>
             ) : (
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {apiRuns.map((run) => (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-white/10 cursor-pointer group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-accent cursor-pointer group"
                     onClick={() => handleApiLoadRun(run)}
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
+                      <p className="text-sm font-medium truncate text-foreground">
                         {run.topic}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-muted-foreground">
                         {run.mode} · {run.messages.length} messages ·{" "}
                         {new Date(run.createdAt).toLocaleDateString()} · API
                       </p>
@@ -676,10 +676,10 @@ export default function AgentPage() {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
                           run.status === "DONE"
-                            ? "bg-green-100 text-green-700"
+                            ? "bg-muted text-foreground"
                             : run.status === "ERROR"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700"
+                            ? "bg-muted text-foreground"
+                            : "bg-muted text-foreground"
                         }`}
                       >
                         {run.status}
@@ -689,9 +689,9 @@ export default function AgentPage() {
                           e.stopPropagation();
                           handleDeleteRun(run.id, "api");
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
                       >
-                        <Trash2 className="h-3.5 w-3.5 text-gray-400" />
+                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
                     </div>
                   </div>
@@ -720,12 +720,12 @@ export default function AgentPage() {
 
           {/* Error Banner */}
           {Object.keys(providerErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-              <h3 className="text-sm font-semibold text-red-400 mb-2">
+            <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-2">
                 Pipeline Errors
               </h3>
               {Object.entries(providerErrors).map(([provider, err]) => (
-                <div key={provider} className="text-xs text-red-300 mb-1">
+                <div key={provider} className="text-xs text-muted-foreground mb-1">
                   <span className="font-medium">
                     {PROVIDER_LABELS[provider as Provider]}:
                   </span>{" "}
@@ -734,7 +734,7 @@ export default function AgentPage() {
               ))}
               <button
                 onClick={() => setProviderErrors({})}
-                className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+                className="mt-2 text-xs text-foreground hover:text-muted-foreground underline"
               >
                 Dismiss
               </button>
@@ -767,7 +767,7 @@ export default function AgentPage() {
 
       {activeTab === "api" && (
         <>
-          <div className="mb-4 rounded-2xl border border-white/15 bg-white/6 p-4 text-xs text-indigo-200">
+          <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground">
             API mode runs fully in-process using your API keys. Responses are
             generated in turn: ChatGPT → Gemini → Grok, across 3 rounds.
           </div>
@@ -789,12 +789,12 @@ export default function AgentPage() {
 
           {/* Error Banner */}
           {Object.keys(apiProviderErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4">
-              <h3 className="text-sm font-semibold text-red-400 mb-2">
+            <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4">
+              <h3 className="text-sm font-semibold text-foreground mb-2">
                 API Errors
               </h3>
               {Object.entries(apiProviderErrors).map(([provider, err]) => (
-                <div key={provider} className="text-xs text-red-300 mb-1">
+                <div key={provider} className="text-xs text-muted-foreground mb-1">
                   <span className="font-medium">
                     {PROVIDER_LABELS[provider as Provider]}:
                   </span>{" "}
@@ -803,7 +803,7 @@ export default function AgentPage() {
               ))}
               <button
                 onClick={() => setApiProviderErrors({})}
-                className="mt-2 text-xs text-red-400 hover:text-red-300 underline"
+                className="mt-2 text-xs text-foreground hover:text-muted-foreground underline"
               >
                 Dismiss
               </button>

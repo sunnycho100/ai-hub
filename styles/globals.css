@@ -1,54 +1,55 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #0B1020;
-  --color-foreground: #FFFFFF;
-  --color-card: #FFFFFF14;
-  --color-card-foreground: #FFFFFF;
-  --color-popover: #1E293B;
-  --color-popover-foreground: #FFFFFF;
-  --color-primary: #22D3EE;
-  --color-primary-foreground: #0B1020;
-  --color-secondary: #FFFFFF14;
-  --color-secondary-foreground: #FFFFFF;
-  --color-muted: #FFFFFF10;
-  --color-muted-foreground: #C7D2FE;
-  --color-accent: #22D3EE;
-  --color-accent-foreground: #0B1020;
-  --color-destructive: hsl(0 84.2% 60.2%);
-  --color-destructive-foreground: #FFFFFF;
-  --color-border: #FFFFFF33;
-  --color-input: #FFFFFF2A;
-  --color-ring: #22D3EE;
-  --radius: 0.75rem;
+  --color-background: #ffffff;
+  --color-foreground: #09090b;
 
-  --color-glass: #FFFFFF14;
-  --color-glass-border: #FFFFFF33;
-  --color-glass-hover: #FFFFFF20;
-  --color-text-secondary: #C7D2FE;
-  --color-text-muted: #A5B4FC;
-  --color-cyan: #22D3EE;
-  --color-cyan-light: #7DD3FC;
+  --color-card: #ffffff;
+  --color-card-foreground: #09090b;
+
+  --color-popover: #ffffff;
+  --color-popover-foreground: #09090b;
+
+  --color-primary: #18181b;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f4f4f5;
+  --color-secondary-foreground: #18181b;
+
+  --color-muted: #f4f4f5;
+  --color-muted-foreground: #71717a;
+
+  --color-accent: #f4f4f5;
+  --color-accent-foreground: #18181b;
+
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e4e4e7;
+  --color-input: #e4e4e7;
+  --color-ring: #18181b;
+
+  --radius: 0.5rem;
+
+  /* Custom additions */
+  --color-glass: rgba(255, 255, 255, 0.7);
+  --color-glass-border: #e4e4e7;
+  --color-glass-hover: #f4f4f5;
+  --color-sidebar: #f9fafb;
 }
 
-* {
-  border-color: var(--color-border);
-}
-
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
 }
 
 /* Glass card utility */
 .glass {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(12px);
-}
-
-.glass-strong {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(8px);
 }

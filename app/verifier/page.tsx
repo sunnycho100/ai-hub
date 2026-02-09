@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function VerifierPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
-      <Button asChild variant="ghost" size="sm" className="mb-8 text-white">
+      <Button asChild variant="ghost" size="sm" className="mb-8">
         <Link href="/" className="flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Home
@@ -14,8 +14,8 @@ export default function VerifierPage() {
       </Button>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-1">AI Verifier</h1>
-        <p className="text-sm text-indigo-200">Trust-first verification with source-linked checks.</p>
+        <h1 className="text-3xl font-bold text-foreground mb-1">AI Verifier</h1>
+        <p className="text-sm text-muted-foreground">Trust-first verification with source-linked checks.</p>
       </div>
 
       <Card>
@@ -23,10 +23,10 @@ export default function VerifierPage() {
           <CardTitle>Coming Soon</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-indigo-200 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Run claims through multi-stage verification and get confidence scores with citations.
           </p>
-          <ul className="space-y-2 text-xs text-indigo-300">
+          <ul className="space-y-2 text-xs text-muted-foreground">
             <li>• Claim extraction + evidence search</li>
             <li>• Multi-model cross-verification</li>
             <li>• Exportable audit trail</li>
@@ -39,7 +39,7 @@ export default function VerifierPage() {
           <CardHeader>
             <CardTitle className="text-base">Use Cases</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-indigo-300 space-y-1.5">
+          <CardContent className="text-xs text-muted-foreground space-y-1.5">
             <p>• Academic research verification</p>
             <p>• News and article fact-checking</p>
             <p>• Legal document review</p>
@@ -51,7 +51,7 @@ export default function VerifierPage() {
           <CardHeader>
             <CardTitle className="text-base">Verification Pipeline</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-indigo-300 space-y-1.5">
+          <CardContent className="text-xs text-muted-foreground space-y-1.5">
             <p>• Search model finds sources</p>
             <p>• Verification model validates</p>
             <p>• Confidence scores assigned</p>

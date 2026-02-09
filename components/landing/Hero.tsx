@@ -13,15 +13,15 @@ export function Hero() {
       <div className="container mx-auto px-4 py-24 md:py-32">
         <div className="mx-auto max-w-3xl text-center">
           {/* Main Heading */}
-          <h1 className="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+          <h1 className="mb-6 text-4xl font-bold tracking-tight text-foreground sm:text-5xl md:text-6xl">
             Multi-model collaboration,{" "}
-            <span className="text-white">
+            <span className="text-foreground">
               for your next renovation.
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="mb-10 text-lg text-indigo-200 md:text-xl">
+          <p className="mb-10 text-lg text-muted-foreground md:text-xl">
             Run coordinated debates across ChatGPT, Gemini, and Grok, with transparent, traceable outputs.
           </p>
 
@@ -29,7 +29,7 @@ export function Hero() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
               href="/agent"
-              className="inline-flex items-center px-5 py-3 rounded-xl bg-cyan-400 text-[#0B1020] font-semibold text-sm hover:bg-cyan-300 transition-colors"
+              className="inline-flex items-center px-5 py-3 rounded-lg bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 transition-colors"
             >
               Open Agent Communication
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -37,7 +37,7 @@ export function Hero() {
 
             <button
               onClick={scrollToTools}
-              className="inline-flex items-center px-5 py-3 rounded-xl bg-white/8 border border-white/25 text-white font-semibold text-sm hover:bg-white/15 transition-colors"
+              className="inline-flex items-center px-5 py-3 rounded-lg bg-secondary border border-input text-secondary-foreground font-semibold text-sm hover:bg-secondary/80 transition-colors"
             >
               View Tools
               <ChevronDown className="ml-2 h-4 w-4" />
@@ -53,10 +53,10 @@ export function Hero() {
             ].map((stat) => (
               <div
                 key={stat.label}
-                className="glass rounded-2xl px-4 py-3.5"
+                className="rounded-lg border border-border bg-card px-4 py-3.5"
               >
-                <div className="text-xs font-semibold text-indigo-300 tracking-wider mb-1">{stat.label}</div>
-                <div className="text-2xl font-bold text-white">{stat.value}</div>
+                <div className="text-xs font-semibold text-muted-foreground tracking-wider mb-1">{stat.label}</div>
+                <div className="text-2xl font-bold text-card-foreground">{stat.value}</div>
               </div>
             ))}
           </div>

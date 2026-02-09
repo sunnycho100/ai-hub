@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 export default function WriterPage() {
   return (
     <div className="container mx-auto px-4 py-12 max-w-4xl">
-      <Button asChild variant="ghost" size="sm" className="mb-8 text-white">
+      <Button asChild variant="ghost" size="sm" className="mb-8">
         <Link href="/" className="flex items-center">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Home
@@ -14,8 +14,8 @@ export default function WriterPage() {
       </Button>
 
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-1">AI Writer</h1>
-        <p className="text-sm text-indigo-200">Your voice, calibrated across styles and audiences.</p>
+        <h1 className="text-3xl font-bold text-foreground mb-1">AI Writer</h1>
+        <p className="text-sm text-muted-foreground">Your voice, calibrated across styles and audiences.</p>
       </div>
 
       <Card>
@@ -23,10 +23,10 @@ export default function WriterPage() {
           <CardTitle>Coming Soon</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-indigo-200 mb-4">
+          <p className="text-sm text-muted-foreground mb-4">
             Generate drafts that match your tone with controllable style presets.
           </p>
-          <ul className="space-y-2 text-xs text-indigo-300">
+          <ul className="space-y-2 text-xs text-muted-foreground">
             <li>• Style analysis + tone matching</li>
             <li>• Draft variants + rewrite tools</li>
             <li>• Export to doc or markdown</li>
@@ -39,7 +39,7 @@ export default function WriterPage() {
           <CardHeader>
             <CardTitle className="text-base">Use Cases</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-indigo-300 space-y-1.5">
+          <CardContent className="text-xs text-muted-foreground space-y-1.5">
             <p>• Academic essay writing</p>
             <p>• Blog post creation</p>
             <p>• Technical documentation</p>
@@ -51,7 +51,7 @@ export default function WriterPage() {
           <CardHeader>
             <CardTitle className="text-base">Writing Modes</CardTitle>
           </CardHeader>
-          <CardContent className="text-xs text-indigo-300 space-y-1.5">
+          <CardContent className="text-xs text-muted-foreground space-y-1.5">
             <p>• Academic (formal, cited)</p>
             <p>• Casual (conversational)</p>
             <p>• Technical (precise, clear)</p>
