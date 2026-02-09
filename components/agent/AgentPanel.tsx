@@ -14,22 +14,16 @@ interface AgentPanelProps {
   currentRound: Round | null;
 }
 
-const PROVIDER_COLORS: Record<Provider, string> = {
-  chatgpt: "bg-green-50 border-green-200",
-  gemini: "bg-blue-50 border-blue-200",
-  grok: "bg-orange-50 border-orange-200",
-};
-
 const PROVIDER_ACCENT: Record<Provider, string> = {
-  chatgpt: "text-green-700",
-  gemini: "text-blue-700",
-  grok: "text-orange-700",
+  chatgpt: "text-green-400",
+  gemini: "text-blue-400",
+  grok: "text-orange-400",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
-  chatgpt: "bg-green-500",
-  gemini: "bg-blue-500",
-  grok: "bg-orange-500",
+  chatgpt: "bg-green-400",
+  gemini: "bg-blue-400",
+  grok: "bg-orange-400",
 };
 
 export function AgentPanel({
@@ -44,10 +38,8 @@ export function AgentPanel({
     (m) => m.provider === provider && m.role === "assistant"
   );
 
-  const latestMessage = providerMessages[providerMessages.length - 1];
-
   return (
-    <Card className={`${PROVIDER_COLORS[provider]} border`}>
+    <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -56,17 +48,17 @@ export function AgentPanel({
           </div>
           <div className="flex items-center gap-2">
             {isSending && (
-              <span className="text-xs text-gray-500 animate-pulse">
+              <span className="text-xs text-indigo-300 animate-pulse">
                 Sending...
               </span>
             )}
             <div className="flex items-center gap-1.5">
               <div
                 className={`h-2 w-2 rounded-full ${
-                  isConnected ? PROVIDER_DOT[provider] : "bg-gray-300"
+                  isConnected ? PROVIDER_DOT[provider] : "bg-white/20"
                 }`}
               />
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-indigo-300">
                 {isConnected ? "Connected" : "Disconnected"}
               </span>
             </div>
@@ -76,11 +68,11 @@ export function AgentPanel({
       <CardContent>
         {error ? (
           <div className="text-sm text-center py-6">
-            <div className="text-red-500 font-mono text-xs mb-1">{error.code}</div>
-            <div className="text-red-600 text-xs">{error.message}</div>
+            <div className="text-red-400 font-mono text-xs mb-1">{error.code}</div>
+            <div className="text-red-300 text-xs">{error.message}</div>
           </div>
         ) : providerMessages.length === 0 ? (
-          <div className="text-sm text-gray-400 italic text-center py-8">
+          <div className="text-sm text-indigo-300/60 italic text-center py-8">
             {isSending
               ? "Waiting for response..."
               : "No messages yet"}
@@ -95,11 +87,11 @@ export function AgentPanel({
                   >
                     Round {msg.round}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-indigo-300/60">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+                <p className="text-indigo-100 leading-relaxed whitespace-pre-wrap">
                   {msg.text}
                 </p>
               </div>

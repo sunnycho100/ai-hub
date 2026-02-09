@@ -29,6 +29,13 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - Service worker keepalive to prevent MV3 termination
 - API edition (`/api/agent-api`) for in-process, key-based provider calls
 
+**Phase 2.5: API Mode + UI Redesign — Done**
+- API-based agent communication tab (ChatGPT, Gemini, Grok via API keys)
+- Next.js API route (`/api/agent-api`) for server-side provider calls
+- Glassmorphism dark theme designed with VSCode extension [Pencil](https://marketplace.visualstudio.com/items?itemName=nicepkg.pencil) for a professional UI
+- Dark navy background, translucent glass cards, cyan accent system
+- All pages restyled: landing, agent, verifier, writer
+
 **Phase 3: Verifier & Writer — Planned**
 - AI Verifier and AI Writer tools
 - Spring Boot product backend, FastAPI AI engine
@@ -40,8 +47,9 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript
 - **Runtime**: React 19
-- **Styling**: Tailwind CSS 4
+- **Styling**: Tailwind CSS 4 (glassmorphism dark theme)
 - **UI Components**: shadcn/ui (Radix primitives)
+- **UI Design**: Pencil (VSCode extension) for visual prototyping
 - **Icons**: lucide-react
 - **State Management**: TanStack Query + localStorage
 - **Validation**: Zod 4

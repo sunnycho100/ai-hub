@@ -10,29 +10,28 @@ interface TranscriptTimelineProps {
 }
 
 const PROVIDER_BADGE: Record<Provider, string> = {
-  chatgpt: "bg-green-100 text-green-800",
-  gemini: "bg-blue-100 text-blue-800",
-  grok: "bg-orange-100 text-orange-800",
+  chatgpt: "bg-green-500/20 text-green-400",
+  gemini: "bg-blue-500/20 text-blue-400",
+  grok: "bg-orange-500/20 text-orange-400",
 };
 
 export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
-  // Sort by timestamp ascending
   const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <ScrollText className="h-4 w-4 text-gray-500" />
+          <ScrollText className="h-4 w-4 text-indigo-300" />
           <CardTitle className="text-base">Transcript Timeline</CardTitle>
-          <span className="text-xs text-gray-400 ml-auto">
+          <span className="text-xs text-indigo-300/60 ml-auto">
             {messages.length} message{messages.length !== 1 ? "s" : ""}
           </span>
         </div>
       </CardHeader>
       <CardContent>
         {sorted.length === 0 ? (
-          <div className="text-sm text-gray-400 italic text-center py-6">
+          <div className="text-sm text-indigo-300/60 italic text-center py-6">
             Start a run to see the transcript here.
           </div>
         ) : (
@@ -40,7 +39,7 @@ export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
             {sorted.map((msg) => (
               <div
                 key={msg.id}
-                className="border-l-2 border-gray-200 pl-4 py-1"
+                className="border-l-2 border-white/15 pl-4 py-1"
               >
                 <div className="flex items-center gap-2 mb-1">
                   <span
@@ -50,14 +49,14 @@ export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
                   >
                     {PROVIDER_LABELS[msg.provider]}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-indigo-300/60">
                     R{msg.round}
                   </span>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-indigo-300/60">
                     {new Date(msg.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap line-clamp-3">
+                <p className="text-sm text-indigo-100 leading-relaxed whitespace-pre-wrap line-clamp-3">
                   {msg.text}
                 </p>
               </div>

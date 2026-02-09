@@ -9,13 +9,13 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 bg-gray-50/50">
+    <aside className="hidden md:flex w-64 flex-col border-r border-white/10 bg-[#0B1020]">
       <div className="p-6">
         <Link href="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-lg bg-gray-900 flex items-center justify-center">
-            <span className="text-white font-bold text-lg">A</span>
+          <div className="h-8 w-8 rounded-lg bg-cyan-400 flex items-center justify-center">
+            <span className="text-[#0B1020] font-bold text-lg">A</span>
           </div>
-          <span className="font-bold text-xl">AI Hub</span>
+          <span className="font-bold text-xl text-white">AI Hub</span>
         </Link>
       </div>
       
@@ -32,8 +32,8 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-gray-900 text-white"
-                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-cyan-400 text-[#0B1020]"
+                    : "text-indigo-200 hover:bg-white/10 hover:text-white"
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -44,8 +44,8 @@ export function Sidebar() {
         </div>
       </nav>
       
-      <div className="p-4 border-t border-gray-200">
-        <div className="text-xs text-gray-500">
+      <div className="p-4 border-t border-white/10">
+        <div className="text-xs text-indigo-300/60">
           <p className="mb-1">AI Hub v1.0.0</p>
           <p>Powered by Next.js</p>
         </div>

@@ -14,44 +14,40 @@ export function Topbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+      <header className="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0B1020]/95 backdrop-blur supports-[backdrop-filter]:bg-[#0B1020]/80">
         <div className="flex h-14 items-center px-4">
-          {/* Mobile menu button */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden mr-2"
+            className="md:hidden mr-2 text-white hover:bg-white/10"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          {/* Mobile logo */}
           <Link href="/" className="flex items-center space-x-2 md:hidden">
-            <div className="h-7 w-7 rounded-lg bg-gray-900 flex items-center justify-center">
-              <span className="text-white font-bold">A</span>
+            <div className="h-7 w-7 rounded-lg bg-cyan-400 flex items-center justify-center">
+              <span className="text-[#0B1020] font-bold">A</span>
             </div>
-            <span className="font-bold text-lg">AI Hub</span>
+            <span className="font-bold text-lg text-white">AI Hub</span>
           </Link>
 
-          {/* Desktop breadcrumb/title */}
           <div className="hidden md:block">
-            <h1 className="text-lg font-semibold">
+            <h1 className="text-lg font-semibold text-white">
               {pathname === "/" ? "Home" : navItems.find(item => item.href === pathname)?.title || "AI Hub"}
             </h1>
           </div>
 
           <div className="ml-auto flex items-center space-x-4">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" className="border-white/20 text-white hover:bg-white/10">
               Sign In
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Mobile navigation menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-gray-200 bg-white">
+        <div className="md:hidden border-b border-white/10 bg-[#0B1020]">
           <nav className="px-4 py-4 space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -65,8 +61,8 @@ export function Topbar() {
                   className={cn(
                     "flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                      ? "bg-cyan-400 text-[#0B1020]"
+                      : "text-indigo-200 hover:bg-white/10 hover:text-white"
                   )}
                 >
                   <Icon className="h-5 w-5" />

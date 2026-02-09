@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { ArrowRight, ChevronDown } from "lucide-react";
 
 export function Hero() {
@@ -10,69 +9,58 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+    <section className="relative overflow-hidden">
       <div className="container mx-auto px-4 py-24 md:py-32">
         <div className="mx-auto max-w-3xl text-center">
-          {/* Badge */}
-          <div className="mb-8 inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-4 py-1.5 text-sm">
-            <span className="mr-2 h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            Now in Beta
-          </div>
-
           {/* Main Heading */}
-          <h1 className="mb-6 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            One workspace for{" "}
-            <span className="bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              intelligent collaboration
+          <h1 className="mb-6 text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+            Multi-model collaboration,{" "}
+            <span className="text-white">
+              for your next renovation.
             </span>
           </h1>
 
           {/* Subtitle */}
-          <p className="mb-10 text-lg text-gray-600 md:text-xl">
-            AI Hub brings together agent communication, content verification, and style-conditioned writing in a unified, professional workspace.
+          <p className="mb-10 text-lg text-indigo-200 md:text-xl">
+            Run coordinated debates across ChatGPT, Gemini, and Grok, with transparent, traceable outputs.
           </p>
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button asChild size="lg" className="w-full sm:w-auto">
-              <Link href="/agent" className="flex items-center">
-                Open Agent Communication
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="lg"
+            <Link
+              href="/agent"
+              className="inline-flex items-center px-5 py-3 rounded-xl bg-cyan-400 text-[#0B1020] font-semibold text-sm hover:bg-cyan-300 transition-colors"
+            >
+              Open Agent Communication
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
+
+            <button
               onClick={scrollToTools}
-              className="w-full sm:w-auto"
+              className="inline-flex items-center px-5 py-3 rounded-xl bg-white/8 border border-white/25 text-white font-semibold text-sm hover:bg-white/15 transition-colors"
             >
               View Tools
               <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
+            </button>
           </div>
 
-          {/* Stats or social proof could go here */}
-          <div className="mt-16 grid grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="text-3xl font-bold">3</div>
-              <div className="text-sm text-gray-500">AI Tools</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">10+</div>
-              <div className="text-sm text-gray-500">AI Models</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold">100%</div>
-              <div className="text-sm text-gray-500">Traceable</div>
-            </div>
+          {/* Stats */}
+          <div className="mt-16 grid grid-cols-3 gap-4">
+            {[
+              { label: "TOOLS", value: "3" },
+              { label: "MODELS", value: "10+" },
+              { label: "TRACEABILITY", value: "100%" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="glass rounded-2xl px-4 py-3.5"
+              >
+                <div className="text-xs font-semibold text-indigo-300 tracking-wider mb-1">{stat.label}</div>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
-
-      {/* Decorative elements */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-to-r from-gray-200/50 to-gray-300/50 rounded-full blur-3xl" />
       </div>
     </section>
   );

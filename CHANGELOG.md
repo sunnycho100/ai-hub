@@ -13,16 +13,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.0.7] - 2026-02-08 - Add API edition for agent runs
-
-### Added
-- **API edition** — Server-side route `/api/agent-api` to run ChatGPT, Gemini, and Grok with API keys
-- **Agent UI tab** for API runs with full transcript timeline and run history
-- **Run source tracking** to distinguish extension vs API runs in history
+## [0.0.8] - 2026-02-06 - Glassmorphism UI redesign with Pencil
 
 ### Changed
-- **Agent run flow** — API edition executes turn-taking sequentially per provider across 3 rounds
-- **Environment setup** — API mode uses `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
+- **Full UI redesign** — Used VSCode extension Pencil to prototype a glassmorphism dark theme, then applied it across all pages
+- **globals.css** — New dark color system: `#0B1020` background, `#FFFFFF14` glass cards, `#22D3EE` cyan accent, `#C7D2FE` indigo text
+- **Button component** — Cyan default, translucent outline/secondary/ghost variants with rounded-xl corners
+- **Card component** — Glass background (`bg-white/8`) with `backdrop-blur-sm` and translucent borders
+- **Separator** — Updated from gray to `bg-white/10`
+- **Sidebar** — Dark background with cyan active states, indigo nav links
+- **Topbar** — Dark backdrop blur header with translucent borders
+- **Landing page** — Removed badge pill, hero with glass stat cards, glass tool cards, translucent step cards
+- **Agent page** — Pill tab switcher, dark glass run controls/panels/transcript, cyan mode toggle, dark error banners
+- **Verifier & Writer pages** — Restyled Coming Soon cards with indigo text on dark glass
+
+---
+
+## [0.0.7] - 2026-02-06 - Add API-based agent communication flow
+
+### Added
+- **API mode tab** on `/agent` — New "Agent Communication (API)" tab for running multi-model discussions via API keys instead of the Chrome extension
+- **Server route** (`app/api/agent-api/route.ts`) — Calls OpenAI (`gpt-4o-mini`), Gemini (`gemini-2.0-flash-lite`), and Grok (`grok-2-latest`) APIs with turn-based prompting
+- **Run source tracking** — `RunSource` type (`"extension"` | `"api"`) added to `lib/types.ts` and `lib/store.ts` for separate history per mode
+- **`.env.local`** — API key storage for `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
+- **`showMock` prop** on `RunControls` — Hides mock button in API mode
+
+### Changed
+- `RunControls` accepts optional `showMock` prop (defaults to `true`)
+- Agent page manages two independent run states (extension vs API)
+- History panel filters runs by source
+
+---
 
 ## [0.0.6] - 2026-02-05 - Debug pipeline: fix content scripts, error visibility, tab validation
 
