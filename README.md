@@ -12,6 +12,8 @@ AI Hub is a student productivity platform that brings together three core AI cap
 
 The Agent Communication tool uses a **hybrid architecture**: a Next.js orchestrator coordinates multi-round debates while a Chrome extension automates prompt delivery and response scraping inside real AI chat tabs.
 
+Agent Communication now also offers an **API edition**: a server-side route that calls ChatGPT, Gemini, and Grok directly using your API keys, with a dedicated "Agent Communication (API)" tab in the UI.
+
 ## Current Implementation Status
 
 **Phase 1: Frontend Shell — Done**
@@ -25,6 +27,7 @@ The Agent Communication tool uses a **hybrid architecture**: a Next.js orchestra
 - Local WebSocket bus for real-time message routing
 - 3-round discussion system with localStorage persistence
 - Service worker keepalive to prevent MV3 termination
+- API edition (`/api/agent-api`) for in-process, key-based provider calls
 
 **Phase 3: Verifier & Writer — Planned**
 - AI Verifier and AI Writer tools
@@ -58,6 +61,11 @@ The Agent Communication tool uses a **hybrid architecture**: a Next.js orchestra
 - **Port**: 3333
 - **Role**: Broadcast relay — every message from one client is forwarded to all others
 - **Clients**: Next.js browser app + Chrome extension service worker
+
+### Server API (Next.js Route)
+- **Endpoint**: `/api/agent-api`
+- **Providers**: OpenAI (gpt-4o-mini), Gemini (gemini-2.0-flash-lite), Grok (grok-2-latest)
+- **Auth**: API keys via `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
 
 ### Backend (Planned)
 - **Product Backend**: Spring Boot (Java)
@@ -93,13 +101,22 @@ bash start.sh
 ```
 This launches the Next.js dev server on port 3000 and the WS bus on port 3333.
 
-4. Load the Chrome extension:
+4. (Optional) Enable API edition:
+  - Create `.env.local` with:
+    ```bash
+    OPENAI_API_KEY=...
+    GEMINI_API_KEY=...
+    XAI_API_KEY=...
+    ```
+  - In the UI, switch to **Agent Communication (API)**.
+
+5. Load the Chrome extension:
    - Open `chrome://extensions/`
    - Enable **Developer mode**
    - Click **Load unpacked** → select the `extension/` folder
    - Open tabs for ChatGPT, Gemini, and/or Grok
 
-5. Open [http://localhost:3000/agent](http://localhost:3000/agent) and start a run
+6. Open [http://localhost:3000/agent](http://localhost:3000/agent) and start a run
 
 ### Available Scripts
 
@@ -173,6 +190,12 @@ ai-hub/
 | `/verifier` | AI Verifier tool | Planned |
 | `/writer` | AI Writer tool | Planned |
 
+## API Routes
+
+| Route | Description |
+|-------|-------------|
+| `/api/agent-api` | Server-side Agent Communication (API edition) |
+
 ## Features
 
 ### Agent Communication (Implemented)
@@ -212,6 +235,11 @@ ai-hub/
 - Real-time transcript timeline with per-provider status
 - Conversation history persisted in localStorage
 - Error handling with per-provider error display
+
+**API edition**:
+- Server-side run mode using `/api/agent-api` with provider API keys
+- Sequential turns per round (ChatGPT → Gemini → Grok)
+- Uses the same transcript timeline and run history as extension runs
 
 ### UI Shell (Implemented)
 - Responsive sidebar navigation

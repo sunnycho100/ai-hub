@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.7] - 2026-02-08 - Add API edition for agent runs
+
+### Added
+- **API edition** — Server-side route `/api/agent-api` to run ChatGPT, Gemini, and Grok with API keys
+- **Agent UI tab** for API runs with full transcript timeline and run history
+- **Run source tracking** to distinguish extension vs API runs in history
+
+### Changed
+- **Agent run flow** — API edition executes turn-taking sequentially per provider across 3 rounds
+- **Environment setup** — API mode uses `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
+
 ## [0.0.6] - 2026-02-05 - Debug pipeline: fix content scripts, error visibility, tab validation
 
 ### Fixed
