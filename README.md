@@ -116,14 +116,24 @@ npm run dev
 
 5. Open [http://localhost:3000](http://localhost:3000)
 
-### Configured Models
+### Model Selection (API Mode)
 
-The API mode currently uses:
-- **Gemini**: `gemini-2.5-flash-lite` (cheapest option)
-- **OpenAI**: `gpt-4o-mini` (cheapest GPT model)
-- **Grok**: `grok-2-latest` (requires XAI_API_KEY)
+The API mode lets you select 2 models for multi-agent discussions. By default:
+- **Model 1 (Left)**: ChatGPT (`gpt-4o-mini`)
+- **Model 2 (Right)**: Gemini (`gemini-2.5-flash-lite`)
 
-Models are hardcoded in `app/api/agent-api/route.ts` and can be changed by editing the respective provider functions.
+**Available models:**
+- ✅ **ChatGPT** — OpenAI's gpt-4o-mini (requires `OPENAI_API_KEY`)
+- ✅ **Gemini** — Google's gemini-2.5-flash-lite (requires `GEMINI_API_KEY`)
+
+**In progress:**
+- 🔶 **Grok** — xAI's grok-2-latest (requires `XAI_API_KEY`)
+- 🔶 **Claude** — Anthropic's models (not yet implemented)
+- 🔶 **Kimi** — Moonshot AI's models (not yet implemented)
+
+You can select different models using the dropdown in the API mode interface. Models marked "in progress" are disabled until implementation is complete.
+
+Model configurations are defined in `app/api/agent-api/route.ts`.
 
 ## Tech Stack
 

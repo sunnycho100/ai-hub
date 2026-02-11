@@ -13,6 +13,28 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   grok: "Grok",
 };
 
+/** Extended model list including in-progress providers */
+export type ExtendedProvider = "chatgpt" | "gemini" | "grok" | "claude" | "kimi";
+
+export const EXTENDED_PROVIDER_LABELS: Record<ExtendedProvider, string> = {
+  chatgpt: "ChatGPT",
+  gemini: "Gemini",
+  grok: "Grok",
+  claude: "Claude",
+  kimi: "Kimi",
+};
+
+/** Model availability status */
+export type ModelStatus = "available" | "in-progress";
+
+export const MODEL_STATUS: Record<ExtendedProvider, ModelStatus> = {
+  chatgpt: "available",
+  gemini: "available",
+  grok: "in-progress",
+  claude: "in-progress",
+  kimi: "in-progress",
+};
+
 /** Conversation mode */
 export type RunMode = "debate" | "collaboration";
 

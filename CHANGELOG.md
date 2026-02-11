@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.11] - 2026-02-10 - Add model selection UI for API mode
+
+### Added
+- **Model selection interface** — Users can now select which 2 models to use in API mode
+- **Extended provider types** — Added Claude and Kimi to model list (marked as "in progress")
+- **Model availability status** — Visual indicators show which models are available vs in-progress
+- **Default configuration** — ChatGPT (left) and Gemini (right) as default models
+
+### Changed
+- **Disabled Grok** — Removed Grok from default API providers (marked as in-progress)
+- **2-column layout** — API mode now displays 2 agent panels instead of 3
+- **Dynamic model filtering** — Only available models can be used in API runs
+
+### Fixed
+- **Grok API errors** — No longer shows "Missing XAI_API_KEY" error by default
+
+---
+
 ## [0.0.10] - 2026-02-10 - Add Layer-2 AI architecture documentation
 
 ### Added

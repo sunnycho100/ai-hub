@@ -21,6 +21,9 @@ import {
   PROVIDER_LABELS,
   WSMessage,
   RunSource,
+  ExtendedProvider,
+  EXTENDED_PROVIDER_LABELS,
+  MODEL_STATUS,
 } from "@/lib/types";
 import {
   createRun,
@@ -54,7 +57,17 @@ export default function AgentPage() {
   const { status: wsStatus, send, subscribe } = useWebSocket();
 
   const [activeTab, setActiveTab] = useState<"extension" | "api">("extension");
-  const apiProviders: Provider[] = ["chatgpt", "gemini", "grok"];
+
+  // API model selection - default: ChatGPT and Gemini
+  const [selectedModel1, setSelectedModel1] = useState<ExtendedProvider>("chatgpt");
+  const [selectedModel2, setSelectedModel2] = useState<ExtendedProvider>("gemini");
+  
+  // Derive API providers from selected models (only include available ones)
+  const apiProviders: Provider[] = [selectedModel1, selectedModel2].filter(
+    (model): model is Provider => 
+      MODEL_STATUS[model] === "available" && 
+      (model === "chatgpt" || model === "gemini" || model === "grok")
+  );
 
   // Run state
   const [topic, setTopic] = useState("");
@@ -769,7 +782,67 @@ export default function AgentPage() {
         <>
           <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground">
             API mode runs fully in-process using your API keys. Responses are
-            generated in turn: ChatGPT → Gemini → Grok, across 3 rounds.
+            generated in turn across 3 rounds.
+          </div>
+
+          {/* Model Selection */}
+          <div className="mb-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Model Selection</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Model 1 */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                      Model 1 (Left)
+                    </label>
+                    <select
+                      value={selectedModel1}
+                      onChange={(e) => setSelectedModel1(e.target.value as ExtendedProvider)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      disabled={apiStatus !== "IDLE"}
+                    >
+                      {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
+                        <option
+                          key={model}
+                          value={model}
+                          disabled={MODEL_STATUS[model] === "in-progress"}
+                        >
+                          {EXTENDED_PROVIDER_LABELS[model]}
+                          {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Model 2 */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                      Model 2 (Right)
+                    </label>
+                    <select
+                      value={selectedModel2}
+                      onChange={(e) => setSelectedModel2(e.target.value as ExtendedProvider)}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      disabled={apiStatus !== "IDLE"}
+                    >
+                      {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
+                        <option
+                          key={model}
+                          value={model}
+                          disabled={MODEL_STATUS[model] === "in-progress"}
+                        >
+                          {EXTENDED_PROVIDER_LABELS[model]}
+                          {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Run Controls */}
@@ -810,8 +883,8 @@ export default function AgentPage() {
             </div>
           )}
 
-          {/* Agent Panels (3 columns) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          {/* Agent Panels (2 columns) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {apiProviders.map((provider) => (
               <AgentPanel
                 key={provider}
