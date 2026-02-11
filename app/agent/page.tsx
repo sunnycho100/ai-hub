@@ -101,6 +101,9 @@ export default function AgentPage() {
   const apiCancelledRef = useRef(false);
   const apiAbortRef = useRef<AbortController | null>(null);
 
+  // Track which providers are active for the current extension run
+  const runProvidersRef = useRef<Provider[]>([...PROVIDERS]);
+
   const refreshRuns = useCallback(() => {
     const all = loadRuns();
     setExtensionRuns(
@@ -174,8 +177,9 @@ export default function AgentPage() {
         (m) => m.round === round && m.role === "assistant"
       );
       const respondedProviders = new Set(roundMessages.map((m) => m.provider));
+      const expectedCount = runProvidersRef.current.length;
 
-      if (respondedProviders.size >= 3) {
+      if (respondedProviders.size >= expectedCount) {
         if (round === 1) {
           advanceToRound(run, 2);
         } else if (round === 2) {
@@ -195,6 +199,7 @@ export default function AgentPage() {
 
   const advanceToRound = useCallback(
     (run: Run, nextRound: Round) => {
+      const activeProviders = runProvidersRef.current;
       const sendingStatus: RunStatus = `R${nextRound}_SENDING` as RunStatus;
       const waitingStatus: RunStatus = `R${nextRound}_WAITING` as RunStatus;
 
@@ -203,9 +208,9 @@ export default function AgentPage() {
         prev ? { ...prev, status: sendingStatus } : prev
       );
 
-      setSendingProviders([...PROVIDERS]);
+      setSendingProviders([...activeProviders]);
 
-      for (const provider of PROVIDERS) {
+      for (const provider of activeProviders) {
         const promptText =
           nextRound === 2
             ? buildR2Prompt(run.topic, run.mode, provider, run.messages)
@@ -234,14 +239,20 @@ export default function AgentPage() {
   const handleStart = useCallback(() => {
     if (!topic.trim()) return;
 
+    // Only send to providers that have connected tabs via the extension
+    const activeProviders = connectedProviders.length > 0
+      ? [...connectedProviders]
+      : [...PROVIDERS]; // fallback if none tracked yet
+    runProvidersRef.current = activeProviders;
+
     const run = createRun(topic, mode);
     updateRunStatus(run.id, "R1_SENDING");
     run.status = "R1_SENDING";
     setCurrentRun(run);
-    setSendingProviders([...PROVIDERS]);
+    setSendingProviders([...activeProviders]);
     setProviderErrors({}); // Clear previous errors
 
-    for (const provider of PROVIDERS) {
+    for (const provider of activeProviders) {
       const promptText = buildR1Prompt(topic, mode);
       send({
         type: "SEND_PROMPT",
@@ -258,7 +269,7 @@ export default function AgentPage() {
         prev ? { ...prev, status: "R1_WAITING" } : prev
       );
     }, 500);
-  }, [topic, mode, send]);
+  }, [topic, mode, send, connectedProviders]);
 
   // ─── Stop the current run ─────────────────────────────
   const handleStop = useCallback(() => {

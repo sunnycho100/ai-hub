@@ -102,6 +102,10 @@ function register() {
 // --- Handle incoming messages ---
 
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
+  if (msg.type === "PING_CONTENT") {
+    sendResponse({ provider: PROVIDER });
+    return;
+  }
   if (msg.type === "SEND_PROMPT") {
     console.log(
       "[" + PROVIDER + "] received SEND_PROMPT for round " + msg.round
@@ -134,13 +138,31 @@ function findElement(selectors, label) {
   return null;
 }
 
-// --- Insert text (simple, proven approach) ---
+// --- Insert text (robust, editor-aware approach) ---
 
 function insertText(el, text) {
   var strategies = [];
 
   if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
-    // Textarea / Input path
+    // React textarea/input: use nativeValueSetter to bypass React's synthetic setter
+    try {
+      var proto = el.tagName === "TEXTAREA"
+        ? window.HTMLTextAreaElement.prototype
+        : window.HTMLInputElement.prototype;
+      var nativeSetter = Object.getOwnPropertyDescriptor(proto, "value").set;
+      el.focus();
+      nativeSetter.call(el, text);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(new Event("change", { bubbles: true }));
+      if (el.value === text) {
+        strategies.push("nativeValueSetter OK");
+        return { success: true, strategies: strategies };
+      }
+      strategies.push("nativeValueSetter value mismatch");
+    } catch (e) {
+      strategies.push("nativeValueSetter FAIL " + e.message);
+    }
+    // Fallback: direct value
     try {
       el.focus();
       el.value = text;
@@ -151,21 +173,53 @@ function insertText(el, text) {
       strategies.push("direct-value FAIL " + e.message);
     }
   } else {
-    // ContentEditable path (Quill / rich editor)
+    // ContentEditable (Quill / rich editor)
+    // CRITICAL: Do NOT use el.textContent = "" — it destroys Quill's internal state.
+    // Use Selection API + execCommand("delete") to clear content through the editor.
+
+    // Strategy 1: Selection API + delete + insertText (preserves editor state)
     try {
       el.focus();
-      el.textContent = "";
+      var sel = window.getSelection();
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand("delete", false, null);
       var ok = document.execCommand("insertText", false, text);
       if (ok && (el.textContent || "").trim().length > 0) {
-        strategies.push("clear+execCommand OK");
+        strategies.push("select+delete+insertText OK");
         return { success: true, strategies: strategies };
       }
-      strategies.push("clear+execCommand returned " + ok);
+      strategies.push("select+delete+insertText returned " + ok);
     } catch (e) {
-      strategies.push("clear+execCommand FAIL " + e.message);
+      strategies.push("select+delete+insertText FAIL " + e.message);
     }
 
-    // Fallback: innerHTML
+    // Strategy 2: Synthetic clipboard paste (Quill handles paste events)
+    try {
+      el.focus();
+      var sel2 = window.getSelection();
+      var range2 = document.createRange();
+      range2.selectNodeContents(el);
+      sel2.removeAllRanges();
+      sel2.addRange(range2);
+      document.execCommand("delete", false, null);
+      var dt = new DataTransfer();
+      dt.setData("text/plain", text);
+      var pasteEvent = new ClipboardEvent("paste", {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: dt,
+      });
+      el.dispatchEvent(pasteEvent);
+      strategies.push("synthetic-paste dispatched");
+      return { success: true, strategies: strategies };
+    } catch (e) {
+      strategies.push("synthetic-paste FAIL " + e.message);
+    }
+
+    // Strategy 3: innerHTML fallback (last resort, may not update editor state)
     try {
       el.focus();
       el.innerHTML = "<p>" + text.replace(/\n/g, "</p><p>") + "</p>";
@@ -278,15 +332,25 @@ async function handleSendPrompt(msg) {
       return;
     }
 
-    showDebug("Text inserted, sending...");
-    await sleep(500);
+    showDebug("Text inserted, waiting for send button...");
 
-    var sendBtn = findSendButton(input);
+    // Poll for send button to become enabled (up to 3 seconds)
+    // After text insertion, Quill may need time to update button state
+    var sendBtn = null;
+    for (var btnAttempt = 0; btnAttempt < 10; btnAttempt++) {
+      await sleep(300);
+      sendBtn = findSendButton(input);
+      if (sendBtn) {
+        console.log("[" + PROVIDER + "] send button found on attempt " + (btnAttempt + 1));
+        break;
+      }
+    }
+
     if (sendBtn) {
       sendBtn.click();
     } else {
       triggerEnterKey(input);
-      showDebug("Tried Enter key (no send button)");
+      showDebug("Used Enter key fallback (no send button)");
     }
 
     chrome.runtime.sendMessage({
@@ -446,3 +510,6 @@ if (document.readyState === "complete") {
     setTimeout(register, 1000);
   });
 }
+
+// Re-register periodically (MV3 service worker may restart and lose tab registry)
+setInterval(register, 30000);

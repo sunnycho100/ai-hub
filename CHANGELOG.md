@@ -13,6 +13,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.15] - 2026-02-10 - Fix Chrome extension agent communication pipeline
+
+### Fixed
+- **Text insertion** — Replaced broken `textContent = ""` approach that destroyed ProseMirror/Quill editor state; now uses Selection API + `execCommand("delete")` to properly clear and insert text
+- **Send button reliability** — Added polling retry (up to 3 seconds) for send button to become enabled after text insertion, instead of single 500ms attempt
+- **Provider filtering** — Extension mode now only sends to actually connected providers instead of always sending to all 3 (chatgpt+gemini+grok)
+- **Round completion** — Changed hardcoded `>= 3` check to dynamic count based on active providers, so rounds complete properly with 2 providers
+- **Service worker recovery** — MV3 service worker restart no longer loses tab registry; background.js now re-discovers content script tabs on WS reconnect via PING_CONTENT
+- **Content script re-registration** — All content scripts now re-register every 30 seconds to survive service worker restarts
+
+### Changed
+- **ChatGPT insertion** — Added nativeValueSetter for textarea inputs + synthetic clipboard paste fallback for contenteditable
+- **Gemini insertion** — Same robust insertion strategy with Quill-aware cleanup
+- **Grok insertion** — Fixed contenteditable fallback path (textarea path was already correct)
+- **advanceToRound** — Uses run's active providers instead of global PROVIDERS constant
+
+### Notes
+- Root cause: `el.textContent = ""` corrupted ProseMirror's internal DOM, causing `execCommand("insertText")` to fail silently
+- Send button was often disabled because editor state wasn't updated, now polling waits for it
+- Extension mode was broken if only 2 of 3 providers were connected (round never completed)
+
+---
+
 ## [0.0.14] - 2026-02-10 - Use official brand logos for AI providers
 
 ### Changed

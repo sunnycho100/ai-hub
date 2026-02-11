@@ -56,6 +56,30 @@ function connectWS() {
         url: info.url,
       });
     }
+
+    // Re-discover content script tabs (in case service worker restarted and lost registry)
+    chrome.tabs.query({}, (tabs) => {
+      for (const tab of tabs) {
+        if (!tab.id) continue;
+        chrome.tabs.sendMessage(tab.id, { type: "PING_CONTENT" }, (response) => {
+          if (chrome.runtime.lastError) return; // no content script in this tab
+          if (response && response.provider) {
+            const existing = tabRegistry.get(response.provider);
+            if (!existing || existing.tabId !== tab.id) {
+              tabRegistry.set(response.provider, { tabId: tab.id, url: tab.url || "" });
+              console.log("[bg] re-discovered " + response.provider + " in tab " + tab.id);
+              wsSend({
+                type: "HELLO_PROVIDER",
+                provider: response.provider,
+                tabId: tab.id,
+                url: tab.url || "",
+              });
+              broadcastStatus();
+            }
+          }
+        });
+      }
+    });
   };
 
   ws.onmessage = (event) => {
