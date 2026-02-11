@@ -13,6 +13,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.14] - 2026-02-10 - Use official brand logos for AI providers
+
+### Changed
+- **ChatGPT icon** — Updated to official OpenAI logo (interlocking rings)
+- **Gemini icon** — Updated to Google Gemini sparkle/star logo
+- **Grok icon** — Updated to X logo (xAI branding)
+- **Claude icon** — Updated to Anthropic's stylized "A" logo
+- **Kimi icon** — Added Moonshot Kimi logo design
+
+### Added
+- **simple-icons package** — Installed for brand icon reference
+
+### Notes
+- All icons now use official brand assets for proper visual identity
+- Icons are recognizable and match what users see on the respective platforms
+
+---
+
 ## [0.0.13] - 2026-02-10 - Add brand-specific colors and custom icons for providers
 
 ### Added
