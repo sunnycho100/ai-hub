@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.10] - 2026-02-10 - Add Layer-2 AI architecture documentation
+
+### Added
+- **Layer-2 AI system philosophy** — Document the four-layer design: Orchestration, Memory, Verification, Writing
+- **Learning outcomes section** — Comprehensive guide to what you learn from AI/ML, Systems, and Industry perspectives
+- **TODO milestones** — Added Phases 2-4 with 9 new milestones covering Memory, Verification, and Writing layers
+- **Tech stack separation** — Clear division between "Current Tech Stack" and "Planned Tech Stack"
+
+### Changed
+- **Project overview** — Updated to explain Layer-2 approach (building systems on top of LLMs without training new models)
+- **Architecture clarity** — Marked all unimplemented features with (TODO) labels
+- **Implementation status** — Detailed current vs planned phases
+
+### Notes
+- This is a documentation-only release clarifying project vision and roadmap
+- No code changes in this version
+
+---
+
 ## [0.0.9] - 2026-02-10 - Configure and test API provider connections
 
 ### Added
