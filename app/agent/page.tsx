@@ -61,6 +61,7 @@ export default function AgentPage() {
   // API model selection - default: ChatGPT and Gemini
   const [selectedModel1, setSelectedModel1] = useState<ExtendedProvider>("chatgpt");
   const [selectedModel2, setSelectedModel2] = useState<ExtendedProvider>("gemini");
+  const [maxRounds, setMaxRounds] = useState<number>(3);
   
   // Derive API providers from selected models (only include available ones)
   const apiProviders: Provider[] = [selectedModel1, selectedModel2].filter(
@@ -408,7 +409,8 @@ export default function AgentPage() {
     setApiProviderErrors({});
     refreshRuns();
 
-    const rounds: Round[] = [1, 2, 3];
+    // Generate rounds array based on maxRounds setting
+    const rounds: Round[] = Array.from({ length: maxRounds }, (_, i) => (i + 1) as Round);
 
     for (const round of rounds) {
       if (apiCancelledRef.current) break;
@@ -792,7 +794,7 @@ export default function AgentPage() {
                 <CardTitle className="text-base">Model Selection</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Model 1 */}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-2 block">
@@ -838,6 +840,25 @@ export default function AgentPage() {
                           {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  {/* Max Rounds */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                      Max Rounds
+                    </label>
+                    <select
+                      value={maxRounds}
+                      onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      disabled={apiStatus !== "IDLE"}
+                    >
+                      <option value={1}>1 Round</option>
+                      <option value={2}>2 Rounds</option>
+                      <option value={3}>3 Rounds</option>
+                      <option value={4}>4 Rounds</option>
+                      <option value={5}>5 Rounds</option>
                     </select>
                   </div>
                 </div>

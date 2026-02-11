@@ -13,6 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.12] - 2026-02-10 - Add configurable max rounds for API mode
+
+### Added
+- **Max Rounds selector** — Users can now configure how many rounds the conversation should run (1-5 rounds)
+- **Dynamic round generation** — Conversation automatically ends after the selected number of rounds
+- **Default: 3 rounds** — Maintains the original 3-round default behavior
+
+### Changed
+- **Model Selection layout** — Changed from 2-column to 3-column grid to accommodate max rounds control
+- **Round limit flexibility** — No longer hardcoded to exactly 3 rounds
+
+---
+
 ## [0.0.11] - 2026-02-10 - Add model selection UI for API mode
 
 ### Added

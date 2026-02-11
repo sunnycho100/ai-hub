@@ -133,6 +133,12 @@ The API mode lets you select 2 models for multi-agent discussions. By default:
 
 You can select different models using the dropdown in the API mode interface. Models marked "in progress" are disabled until implementation is complete.
 
+**Configurable rounds:**
+- Set the maximum number of conversation rounds (1-5)
+- Default: 3 rounds
+- Each round allows both models to respond in sequence
+- Conversation automatically ends after reaching the max rounds
+
 Model configurations are defined in `app/api/agent-api/route.ts`.
 
 ## Tech Stack
