@@ -13,6 +13,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-02-11 - Fix Gemini response extraction and filter search/thinking metadata
+
+### Fixed
+- **Gemini response extraction** — Updated DOM selectors to match current gemini.google.com structure
+  - Added `structured-content-container.model-response-text` selector (Gemini's new response container as of 2025)
+  - Researched current selectors from actively-maintained userscripts (Gemini Response Collapse, GeminiPilot)
+  - Reorganized `MESSAGE_TEXT_SELECTORS` to prioritize new structure while keeping legacy fallbacks
+  - Response text now extracted successfully after completion
+- **ChatGPT search/thinking mode filtering** — Strip Sources, citations, and thinking metadata from responses
+  - Clones response element before extraction to avoid modifying actual DOM
+  - Removes noise elements: `[class*="sources"]`, `[class*="citation"]`, `[class*="search-result"]`, `details`, `summary`, `[class*="thought"]`
+  - Regex cleanup removes "Sources · N" section and all web result previews
+  - Strips leading "Thought for Xs" / "Thinking" / "Searching for..." lines
+  - Response now contains only the actual answer text, not 40+ search result snippets
+- **Gemini thinking mode filtering** — Similar cleanup for Gemini 2.5 Pro thinking models
+  - Removes `thinking-content`, `.thinking-indicator`, `.thought-container`, loading/spinner elements
+  - Strips trailing "Sources" sections
+  - Prevents thinking indicator text from being extracted as the response
+
+### Changed
+- **Text extraction method** — Both ChatGPT and Gemini now use `innerText` instead of `textContent`
+  - `innerText` naturally skips hidden elements (action buttons, toolbars)
+  - More accurate representation of what users see on screen
+- **STREAMING_DONE_SELECTORS check** — Now searches both `latestMsg` AND parent `model-response` element
+  - Action buttons (copy, thumbs up/down) may be siblings rather than children of text container
+  - More reliable completion signal detection
+- **Diagnostic logging** — `extractMessageText()` now logs which selector matched and dumps child element tags when extraction fails
+
+### Technical Details
+- **Root cause (Gemini)** — Gemini updated its DOM structure; old selectors (`message-content.model-response-text`) no longer matched
+- **Root cause (ChatGPT search)** — When ChatGPT uses web search, the `.markdown` container includes thinking process, actual response, AND a massive Sources section with 40+ link previews
+- **Solution** — Clone → strip noise → extract text → regex cleanup pipeline ensures only the actual response content is sent to AI Hub
+
+---
+
+## [0.1.0] - 2026-02-11 - Add Claude provider to browser extension
+
+### Added
+- **Claude provider** — Complete browser extension content script (`claude.js`, 470+ lines)
+  - Multi-selector input detection: `contenteditable[role="textbox"]`, ProseMirror, fieldset, textarea
+  - 4-strategy text insertion: execCommand insertText, synthetic clipboard paste, Claude-specific `<p>` element injection, innerHTML fallback
+  - Send button detection: `button[type="submit"]`, `aria-label*="Send"`, with Enter key fallback
+  - Response scraping: `.font-claude-response`, `.font-claude-message`, `div[data-test-render-count]`
+  - Streaming detection: Stop button (`aria-label*="Stop"`) + text stability check (2 consecutive stable reads)
+  - MutationObserver + 2s polling with 5min timeout
+  - Debug overlay, error reporting, periodic re-registration
+- **Model selection UI** — Sliding panel on extension tab for selecting active models
+  - Animated transitions with dynamic agent panels
+  - Provider chips with toggle functionality
+  - Visual model selector with icons
+- **Claude branding** — Orange theme (#f97316) for Claude provider
+  - Updated `PROVIDER_ACCENT`, `PROVIDER_DOT`, `PROVIDER_BADGE` color maps
+  - Extension popup updated with Claude status indicator
+
+### Changed
+- **Provider type system** — Added "claude" to `Provider` union type and `PROVIDERS` array
+- **Extension manifest** — Added `https://claude.ai/*` to host_permissions and content_scripts
+- **Model availability** — Set Claude `MODEL_STATUS` to "available"
+
+### Removed
+- **Grok provider** — Removed from extension (manifest, provider types, UI components)
+  - Kept in API mode and `ExtendedProvider` for future support
+- **Gemini debugging** — Gave up on Gemini response extraction after multiple fix attempts
+  - Gemini code remains but user reported it still doesn't work reliably
+
+### Technical Details
+- **DOM research** — Created comprehensive `docs/DOM_SELECTORS_REFERENCE_CLAUDE.md` (602 lines)
+  - Cross-referenced 6 independent production userscripts/extensions
+  - Extracted Claude-specific input/response selectors from AI Chat Assistant, Multi-Platform AI Prompt Manager
+  - Documented ProseMirror-aware text insertion strategy
+- **Implementation pattern** — Follows chatgpt.js reference architecture exactly
+  - Same function structure, error handling, service worker recovery
+  - Robust multi-strategy fallback approach for DOM manipulation
+
+### Notes
+- This is a **major feature addition** warranting minor version bump (0.0.15 → 0.1.0)
+- Extension now supports ChatGPT + Claude (reliable) and Gemini (unreliable)
+- Users can select which models to use via the new model selection UI
+- Build verified passing with `npx next build`
+
+---
+
+## [0.0.15] - 2026-02-10 - Fix Chrome extension agent communication pipeline
+
+### Fixed
+- **Text insertion** — Replaced broken `textContent = ""` approach that destroyed ProseMirror/Quill editor state; now uses Selection API + `execCommand("delete")` to properly clear and insert text
+- **Send button reliability** — Added polling retry (up to 3 seconds) for send button to become enabled after text insertion, instead of single 500ms attempt
+- **Provider filtering** — Extension mode now only sends to actually connected providers instead of always sending to all 3 (chatgpt+gemini+grok)
+- **Round completion** — Changed hardcoded `>= 3` check to dynamic count based on active providers, so rounds complete properly with 2 providers
+- **Service worker recovery** — MV3 service worker restart no longer loses tab registry; background.js now re-discovers content script tabs on WS reconnect via PING_CONTENT
+- **Content script re-registration** — All content scripts now re-register every 30 seconds to survive service worker restarts
+
+### Changed
+- **ChatGPT insertion** — Added nativeValueSetter for textarea inputs + synthetic clipboard paste fallback for contenteditable
+- **Gemini insertion** — Same robust insertion strategy with Quill-aware cleanup
+- **Grok insertion** — Fixed contenteditable fallback path (textarea path was already correct)
+- **advanceToRound** — Uses run's active providers instead of global PROVIDERS constant
+
+### Notes
+- Root cause: `el.textContent = ""` corrupted ProseMirror's internal DOM, causing `execCommand("insertText")` to fail silently
+- Send button was often disabled because editor state wasn't updated, now polling waits for it
+- Extension mode was broken if only 2 of 3 providers were connected (round never completed)
+
+---
+
+## [0.0.14] - 2026-02-10 - Use official brand logos for AI providers
+
+### Changed
+- **ChatGPT icon** — Updated to official OpenAI logo (interlocking rings)
+- **Gemini icon** — Updated to Google Gemini sparkle/star logo
+- **Grok icon** — Updated to X logo (xAI branding)
+- **Claude icon** — Updated to Anthropic's stylized "A" logo
+- **Kimi icon** — Added Moonshot Kimi logo design
+
+### Added
+- **simple-icons package** — Installed for brand icon reference
+
+### Notes
+- All icons now use official brand assets for proper visual identity
+- Icons are recognizable and match what users see on the respective platforms
+
+---
+
+## [0.0.13] - 2026-02-10 - Add brand-specific colors and custom icons for providers
+
+### Added
+- **Custom provider icons** — Each model now has its own unique icon (ChatGPT, Gemini, Grok, Claude, Kimi)
+- **Brand-specific colors** — Connection dots and accents now use model-specific colors
+  - ChatGPT: Green (#10b981)
+  - Gemini: Blue (#3b82f6)
+  - Grok: Orange (#f97316)
+- **ProviderIcon component** — Reusable SVG icon component for all providers
+- **Provider color constants** — Centralized color definitions in types.ts
+
+### Changed
+- **Replaced MessageSquare icon** — Now using custom provider-specific icons
+- **Visual distinction** — Each model is now visually distinct at a glance
+
+---
+
+## [0.0.12] - 2026-02-10 - Add configurable max rounds for API mode
+
+### Added
+- **Max Rounds selector** — Users can now configure how many rounds the conversation should run (1-5 rounds)
+- **Dynamic round generation** — Conversation automatically ends after the selected number of rounds
+- **Default: 3 rounds** — Maintains the original 3-round default behavior
+
+### Changed
+- **Model Selection layout** — Changed from 2-column to 3-column grid to accommodate max rounds control
+- **Round limit flexibility** — No longer hardcoded to exactly 3 rounds
+
+---
+
 ## [0.0.11] - 2026-02-10 - Add model selection UI for API mode
 
 ### Added

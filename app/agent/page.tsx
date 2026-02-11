@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, History, Trash2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, History, Trash2, SlidersHorizontal, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -10,6 +10,7 @@ import { AgentPanel } from "@/components/agent/AgentPanel";
 import { TranscriptTimeline } from "@/components/agent/TranscriptTimeline";
 import { RunControls } from "@/components/agent/RunControls";
 import { ConnectionStatus } from "@/components/agent/ConnectionStatus";
+import { ProviderIcon } from "@/components/agent/ProviderIcon";
 import { useWebSocket } from "@/lib/useWebSocket";
 import {
   Provider,
@@ -61,13 +62,36 @@ export default function AgentPage() {
   // API model selection - default: ChatGPT and Gemini
   const [selectedModel1, setSelectedModel1] = useState<ExtendedProvider>("chatgpt");
   const [selectedModel2, setSelectedModel2] = useState<ExtendedProvider>("gemini");
+  const [maxRounds, setMaxRounds] = useState<number>(3);
+  
+  // Extension mode rounds
+  const [extMaxRounds, setExtMaxRounds] = useState<number>(2);
   
   // Derive API providers from selected models (only include available ones)
   const apiProviders: Provider[] = [selectedModel1, selectedModel2].filter(
     (model): model is Provider => 
       MODEL_STATUS[model] === "available" && 
-      (model === "chatgpt" || model === "gemini" || model === "grok")
+      (model === "chatgpt" || model === "gemini")
   );
+
+  // Extension model selection - which models to include in extension runs
+  const [selectedExtModels, setSelectedExtModels] = useState<Set<Provider>>(new Set(PROVIDERS));
+  const [showModelPicker, setShowModelPicker] = useState(false);
+
+  const toggleExtModel = useCallback((model: Provider) => {
+    setSelectedExtModels(prev => {
+      const next = new Set(prev);
+      if (next.has(model)) {
+        if (next.size > 1) next.delete(model); // keep at least 1
+      } else {
+        next.add(model);
+      }
+      return next;
+    });
+  }, []);
+
+  // Effective extension providers = selected AND connected
+  const activeExtProviders: Provider[] = PROVIDERS.filter(p => selectedExtModels.has(p));
 
   // Run state
   const [topic, setTopic] = useState("");
@@ -99,6 +123,9 @@ export default function AgentPage() {
 
   const apiCancelledRef = useRef(false);
   const apiAbortRef = useRef<AbortController | null>(null);
+
+  // Track which providers are active for the current extension run
+  const runProvidersRef = useRef<Provider[]>([...PROVIDERS]);
 
   const refreshRuns = useCallback(() => {
     const all = loadRuns();
@@ -173,12 +200,11 @@ export default function AgentPage() {
         (m) => m.round === round && m.role === "assistant"
       );
       const respondedProviders = new Set(roundMessages.map((m) => m.provider));
+      const expectedCount = runProvidersRef.current.length;
 
-      if (respondedProviders.size >= 3) {
-        if (round === 1) {
-          advanceToRound(run, 2);
-        } else if (round === 2) {
-          advanceToRound(run, 3);
+      if (respondedProviders.size >= expectedCount) {
+        if (round < extMaxRounds && round < 3) {
+          advanceToRound(run, (round + 1) as Round);
         } else {
           const doneRun = updateRunStatus(run.id, "DONE");
           if (doneRun) {
@@ -189,11 +215,12 @@ export default function AgentPage() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [extMaxRounds]
   );
 
   const advanceToRound = useCallback(
     (run: Run, nextRound: Round) => {
+      const activeProviders = runProvidersRef.current;
       const sendingStatus: RunStatus = `R${nextRound}_SENDING` as RunStatus;
       const waitingStatus: RunStatus = `R${nextRound}_WAITING` as RunStatus;
 
@@ -202,9 +229,9 @@ export default function AgentPage() {
         prev ? { ...prev, status: sendingStatus } : prev
       );
 
-      setSendingProviders([...PROVIDERS]);
+      setSendingProviders([...activeProviders]);
 
-      for (const provider of PROVIDERS) {
+      for (const provider of activeProviders) {
         const promptText =
           nextRound === 2
             ? buildR2Prompt(run.topic, run.mode, provider, run.messages)
@@ -233,14 +260,23 @@ export default function AgentPage() {
   const handleStart = useCallback(() => {
     if (!topic.trim()) return;
 
+    // Only send to selected models that also have connected tabs
+    const activeProviders = activeExtProviders.filter(p => connectedProviders.includes(p));
+    if (activeProviders.length === 0) {
+      // Fallback: try all selected models even if not confirmed connected
+      runProvidersRef.current = [...activeExtProviders];
+    } else {
+      runProvidersRef.current = activeProviders;
+    }
+
     const run = createRun(topic, mode);
     updateRunStatus(run.id, "R1_SENDING");
     run.status = "R1_SENDING";
     setCurrentRun(run);
-    setSendingProviders([...PROVIDERS]);
+    setSendingProviders([...runProvidersRef.current]);
     setProviderErrors({}); // Clear previous errors
 
-    for (const provider of PROVIDERS) {
+    for (const provider of runProvidersRef.current) {
       const promptText = buildR1Prompt(topic, mode);
       send({
         type: "SEND_PROMPT",
@@ -257,7 +293,7 @@ export default function AgentPage() {
         prev ? { ...prev, status: "R1_WAITING" } : prev
       );
     }, 500);
-  }, [topic, mode, send]);
+  }, [topic, mode, send, connectedProviders, activeExtProviders]);
 
   // ─── Stop the current run ─────────────────────────────
   const handleStop = useCallback(() => {
@@ -274,6 +310,7 @@ export default function AgentPage() {
   const handleMockRun = useCallback(() => {
     if (!topic.trim()) return;
 
+    const mockProviders = [...activeExtProviders];
     const run = createRun(topic, mode);
     const rounds: Round[] = [1, 2, 3];
     let delay = 0;
@@ -286,7 +323,7 @@ export default function AgentPage() {
       setTimeout(() => {
         const r = updateRunStatus(run.id, sendingStatus);
         if (r) setCurrentRun({ ...r });
-        setSendingProviders([...PROVIDERS]);
+        setSendingProviders([...mockProviders]);
       }, delay);
 
       delay += 500;
@@ -295,7 +332,7 @@ export default function AgentPage() {
         const r = updateRunStatus(run.id, waitingStatus);
         if (r) setCurrentRun({ ...r });
 
-        PROVIDERS.forEach((provider, i) => {
+        mockProviders.forEach((provider, i) => {
           setTimeout(() => {
             const mockText = generateMockResponse(
               provider,
@@ -318,7 +355,7 @@ export default function AgentPage() {
               prev.filter((p) => p !== provider)
             );
 
-            if (capturedRound === 3 && i === PROVIDERS.length - 1) {
+            if (capturedRound === 3 && i === mockProviders.length - 1) {
               setTimeout(() => {
                 const done = updateRunStatus(run.id, "DONE");
                 if (done) {
@@ -408,7 +445,8 @@ export default function AgentPage() {
     setApiProviderErrors({});
     refreshRuns();
 
-    const rounds: Round[] = [1, 2, 3];
+    // Generate rounds array based on maxRounds setting
+    const rounds: Round[] = Array.from({ length: maxRounds }, (_, i) => (i + 1) as Round);
 
     for (const round of rounds) {
       if (apiCancelledRef.current) break;
@@ -717,6 +755,99 @@ export default function AgentPage() {
 
       {activeTab === "extension" && (
         <>
+          {/* Model Selection Slider */}
+          <div className="mb-4">
+            <button
+              onClick={() => setShowModelPicker(!showModelPicker)}
+              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Models ({activeExtProviders.length} selected)
+              <svg
+                className={`h-3 w-3 transition-transform duration-200 ${showModelPicker ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Sliding model picker panel */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                showModelPicker ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
+              }`}
+            >
+              <Card>
+                <CardContent className="py-3 px-4">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {PROVIDERS.map((model) => {
+                      const selected = selectedExtModels.has(model);
+                      const connected = connectedProviders.includes(model);
+                      return (
+                        <button
+                          key={model}
+                          onClick={() => toggleExtModel(model)}
+                          disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-200 ${
+                            selected
+                              ? "bg-primary/10 border-primary/30 text-foreground shadow-sm"
+                              : "bg-background border-input text-muted-foreground hover:text-foreground hover:border-border"
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          <ProviderIcon provider={model} className="h-4 w-4" />
+                          {PROVIDER_LABELS[model]}
+                          {selected && <Check className="h-3.5 w-3.5 text-primary" />}
+                          {connected && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 ml-0.5" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Launch Provider Tabs */}
+          <div className="mb-4 flex items-center gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2 text-xs"
+              onClick={() => {
+                const urls: Record<Provider, string> = {
+                  chatgpt: "https://chatgpt.com/",
+                  gemini: "https://gemini.google.com/app",
+                  claude: "https://claude.ai/new",
+                };
+                activeExtProviders.forEach((p) => window.open(urls[p], "_blank"));
+              }}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open {activeExtProviders.length} Provider Tab{activeExtProviders.length !== 1 ? "s" : ""}
+            </Button>
+
+            {/* Extension Max Rounds Selector */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                Rounds
+              </label>
+              <select
+                value={extMaxRounds}
+                onChange={(e) => setExtMaxRounds(parseInt(e.target.value))}
+                className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+              </select>
+            </div>
+          </div>
+
           {/* Run Controls */}
           <div className="mb-6">
             <RunControls
@@ -754,22 +885,26 @@ export default function AgentPage() {
             </div>
           )}
 
-          {/* Agent Panels (3 columns) */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            {PROVIDERS.map((provider) => (
-              <AgentPanel
+          {/* Agent Panels (dynamic columns based on selected models) */}
+          <div className={`grid grid-cols-1 ${activeExtProviders.length >= 2 ? "md:grid-cols-2" : ""} gap-4 mb-6`}>
+            {activeExtProviders.map((provider) => (
+              <div
                 key={provider}
-                provider={provider}
-                messages={messages}
-                isConnected={connectedProviders.includes(provider)}
-                isSending={sendingProviders.includes(provider)}
-                error={providerErrors[provider]}
-                currentRound={
-                  runStatus.startsWith("R")
-                    ? (parseInt(runStatus[1]) as Round)
-                    : null
-                }
-              />
+                className="transition-all duration-300 ease-in-out animate-in slide-in-from-bottom-2 fade-in"
+              >
+                <AgentPanel
+                  provider={provider}
+                  messages={messages}
+                  isConnected={connectedProviders.includes(provider)}
+                  isSending={sendingProviders.includes(provider)}
+                  error={providerErrors[provider]}
+                  currentRound={
+                    runStatus.startsWith("R")
+                      ? (parseInt(runStatus[1]) as Round)
+                      : null
+                  }
+                />
+              </div>
             ))}
           </div>
 
@@ -792,7 +927,7 @@ export default function AgentPage() {
                 <CardTitle className="text-base">Model Selection</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Model 1 */}
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-2 block">
@@ -838,6 +973,25 @@ export default function AgentPage() {
                           {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  {/* Max Rounds */}
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                      Max Rounds
+                    </label>
+                    <select
+                      value={maxRounds}
+                      onChange={(e) => setMaxRounds(parseInt(e.target.value))}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      disabled={apiStatus !== "IDLE"}
+                    >
+                      <option value={1}>1 Round</option>
+                      <option value={2}>2 Rounds</option>
+                      <option value={3}>3 Rounds</option>
+                      <option value={4}>4 Rounds</option>
+                      <option value={5}>5 Rounds</option>
                     </select>
                   </div>
                 </div>

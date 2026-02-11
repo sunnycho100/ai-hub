@@ -90,6 +90,9 @@ Each section represents a milestone suitable for a standalone Git commit.
 - [x] WS bus diagnostic monitor tool
 - [x] API provider configuration (Gemini + OpenAI)
 - [x] API connection testing and model validation
+- [x] Gemini response extraction fix (updated DOM selectors for 2025 structure)
+- [x] ChatGPT search/thinking mode text filtering (strip Sources/citations)
+- [x] Gemini thinking mode text filtering (strip thinking indicators)
 - [ ] Provider selector versioning
 - [ ] Manual resend controls
 - [ ] Paste-only fallback mode

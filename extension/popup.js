@@ -9,7 +9,7 @@ const WS_STATUS_EL = document.getElementById("ws-status");
 const PROVIDER_DOTS = {
   chatgpt: document.getElementById("dot-chatgpt"),
   gemini: document.getElementById("dot-gemini"),
-  grok: document.getElementById("dot-grok"),
+  claude: document.getElementById("dot-claude"),
 };
 
 function updateUI(status) {

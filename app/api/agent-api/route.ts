@@ -1,20 +1,22 @@
 import { NextResponse } from "next/server";
 import {
   Provider,
+  ExtendedProvider,
   PROVIDER_LABELS,
+  EXTENDED_PROVIDER_LABELS,
   RunMode,
   Round,
 } from "@/lib/types";
 
 interface IncomingMessage {
-  provider: Provider;
+  provider: ExtendedProvider;
   round: Round;
   role: "user" | "assistant";
   text: string;
 }
 
 interface AgentApiRequest {
-  provider: Provider;
+  provider: ExtendedProvider;
   topic: string;
   mode: RunMode;
   round: Round;
@@ -22,13 +24,13 @@ interface AgentApiRequest {
 }
 
 function buildTurnPrompt(
-  provider: Provider,
+  provider: ExtendedProvider,
   topic: string,
   mode: RunMode,
   round: Round,
   messages: IncomingMessage[]
 ) {
-  const label = PROVIDER_LABELS[provider];
+  const label = EXTENDED_PROVIDER_LABELS[provider];
   const modeLine =
     mode === "debate"
       ? "You should critique, improve, and sharpen your position."
@@ -40,7 +42,7 @@ function buildTurnPrompt(
       : messages
           .map(
             (m) =>
-              `Round ${m.round} - ${PROVIDER_LABELS[m.provider]}: ${m.text}`
+              `Round ${m.round} - ${EXTENDED_PROVIDER_LABELS[m.provider]}: ${m.text}`
           )
           .join("\n\n");
 

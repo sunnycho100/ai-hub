@@ -3,7 +3,7 @@
 import React from "react";
 import { Provider, PROVIDER_LABELS, TranscriptMessage, Round } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare } from "lucide-react";
+import { ProviderIcon } from "./ProviderIcon";
 
 interface AgentPanelProps {
   provider: Provider;
@@ -43,7 +43,7 @@ export function AgentPanel({
       <CardHeader className="pb-3 border-b border-border/70">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquare className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />
+            <ProviderIcon provider={provider} className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />
             <CardTitle className="text-base font-semibold text-foreground">{PROVIDER_LABELS[provider]}</CardTitle>
           </div>
           <div className="flex items-center gap-2">

@@ -23,7 +23,7 @@ export function Hero() {
             </span>
           </h1>
           <p className="mb-10 text-lg text-muted-foreground md:text-xl">
-            Run coordinated debates across ChatGPT, Gemini, and Grok, with transparent, traceable outputs.
+            Run coordinated debates across ChatGPT, Gemini, and more, with transparent, traceable outputs.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
