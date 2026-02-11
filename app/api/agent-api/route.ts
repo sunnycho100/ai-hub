@@ -60,7 +60,7 @@ function buildTurnPrompt(
 
 async function callGemini(prompt: string, apiKey: string) {
   const url =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent";
+    "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent";
   const response = await fetch(`${url}?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

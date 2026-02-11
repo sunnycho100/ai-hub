@@ -41,6 +41,57 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - Spring Boot product backend, FastAPI AI engine
 - PostgreSQL, Redis, S3
 
+## Getting Started
+
+### Prerequisites
+- Node.js 18+
+- npm or yarn
+- (Optional) API keys for ChatGPT and/or Gemini
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/sunnycho100/ai-hub.git
+cd ai-hub
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Configure API keys (for API mode):
+```bash
+# Copy the example and add your keys
+cp .env.local.example .env.local
+```
+
+Edit `.env.local` and add your API keys:
+```env
+GEMINI_API_KEY=your_gemini_key_here
+OPENAI_API_KEY=your_openai_key_here
+```
+
+- Get Gemini key: [https://aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- Get OpenAI key: [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
+4. Start the development server:
+```bash
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000)
+
+### Configured Models
+
+The API mode currently uses:
+- **Gemini**: `gemini-2.5-flash-lite` (cheapest option)
+- **OpenAI**: `gpt-4o-mini` (cheapest GPT model)
+- **Grok**: `grok-2-latest` (requires XAI_API_KEY)
+
+Models are hardcoded in `app/api/agent-api/route.ts` and can be changed by editing the respective provider functions.
+
 ## Tech Stack
 
 ### Frontend (Next.js App)

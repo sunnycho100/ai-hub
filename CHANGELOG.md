@@ -13,6 +13,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.9] - 2026-02-10 - Configure and test API provider connections
+
+### Added
+- **`.env.local` template** — Created environment file with API key placeholders for Gemini and OpenAI
+- **API connection testing** — Verified Gemini API working with live requests
+
+### Changed
+- **Gemini model** — Updated from `gemini-2.0-flash-lite` to `gemini-2.5-flash-lite` (latest cheap model)
+- **OpenAI model** — Confirmed `gpt-4o-mini` as the configured model (cheapest GPT option)
+- **Documentation** — Added setup instructions for API keys in README
+
+### Fixed
+- **Model compatibility** — Fixed Gemini API endpoint and model name to use available v1 models
+
+### Notes
+- Gemini API fully functional with provided key
+- OpenAI API requires billing setup (free tier quota exhausted)
+
+---
+
 ## [0.0.8] - 2026-02-06 - Glassmorphism UI redesign with Pencil
 
 ### Changed

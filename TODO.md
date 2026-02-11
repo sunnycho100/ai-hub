@@ -88,6 +88,8 @@ Each section represents a milestone suitable for a standalone Git commit.
 - [x] Tab validity checking in background script
 - [x] On-page debug overlay in provider tabs
 - [x] WS bus diagnostic monitor tool
+- [x] API provider configuration (Gemini + OpenAI)
+- [x] API connection testing and model validation
 - [ ] Provider selector versioning
 - [ ] Manual resend controls
 - [ ] Paste-only fallback mode
