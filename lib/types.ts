@@ -35,6 +35,13 @@ export const MODEL_STATUS: Record<ExtendedProvider, ModelStatus> = {
   kimi: "in-progress",
 };
 
+/** Provider brand colors */
+export const PROVIDER_COLORS: Record<Provider, { text: string; bg: string; hex: string }> = {
+  chatgpt: { text: "text-green-500", bg: "bg-green-500", hex: "#10b981" },
+  gemini: { text: "text-blue-500", bg: "bg-blue-500", hex: "#3b82f6" },
+  grok: { text: "text-orange-500", bg: "bg-orange-500", hex: "#f97316" },
+};
+
 /** Conversation mode */
 export type RunMode = "debate" | "collaboration";
 

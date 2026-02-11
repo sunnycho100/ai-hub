@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.13] - 2026-02-10 - Add brand-specific colors and custom icons for providers
+
+### Added
+- **Custom provider icons** — Each model now has its own unique icon (ChatGPT, Gemini, Grok, Claude, Kimi)
+- **Brand-specific colors** — Connection dots and accents now use model-specific colors
+  - ChatGPT: Green (#10b981)
+  - Gemini: Blue (#3b82f6)
+  - Grok: Orange (#f97316)
+- **ProviderIcon component** — Reusable SVG icon component for all providers
+- **Provider color constants** — Centralized color definitions in types.ts
+
+### Changed
+- **Replaced MessageSquare icon** — Now using custom provider-specific icons
+- **Visual distinction** — Each model is now visually distinct at a glance
+
+---
+
 ## [0.0.12] - 2026-02-10 - Add configurable max rounds for API mode
 
 ### Added

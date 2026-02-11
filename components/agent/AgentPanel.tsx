@@ -3,7 +3,7 @@
 import React from "react";
 import { Provider, PROVIDER_LABELS, TranscriptMessage, Round } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageSquare } from "lucide-react";
+import { ProviderIcon } from "./ProviderIcon";
 
 interface AgentPanelProps {
   provider: Provider;
@@ -15,15 +15,15 @@ interface AgentPanelProps {
 }
 
 const PROVIDER_ACCENT: Record<Provider, string> = {
-  chatgpt: "text-foreground",
-  gemini: "text-foreground",
-  grok: "text-foreground",
+  chatgpt: "text-green-500",
+  gemini: "text-blue-500",
+  grok: "text-orange-500",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
-  chatgpt: "bg-foreground",
-  gemini: "bg-foreground",
-  grok: "bg-foreground",
+  chatgpt: "bg-green-500",
+  gemini: "bg-blue-500",
+  grok: "bg-orange-500",
 };
 
 export function AgentPanel({
@@ -43,7 +43,7 @@ export function AgentPanel({
       <CardHeader className="pb-3 border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <MessageSquare className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />
+            <ProviderIcon provider={provider} className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />
             <CardTitle className="text-base font-semibold text-foreground">{PROVIDER_LABELS[provider]}</CardTitle>
           </div>
           <div className="flex items-center gap-2">
