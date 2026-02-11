@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Provider, PROVIDER_LABELS } from "@/lib/types";
+import { Provider, PROVIDERS, PROVIDER_LABELS } from "@/lib/types";
 import { Wifi, WifiOff } from "lucide-react";
 import type { WSStatus } from "@/lib/useWebSocket";
 
@@ -42,7 +42,7 @@ export function ConnectionStatus({
 
       {wsStatus === "connected" && (
         <div className="flex items-center gap-2">
-          {(["chatgpt", "gemini", "grok"] as Provider[]).map((p) => {
+          {PROVIDERS.map((p) => {
             const connected = connectedProviders.includes(p);
             return (
               <span

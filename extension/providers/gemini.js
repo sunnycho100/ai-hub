@@ -38,23 +38,65 @@ var SEND_SELECTORS = [
 
 var ASSISTANT_SELECTORS = [
   "model-response",
+  ".model-response-text",
+  "structured-content-container.model-response-text",
+  "message-content.model-response-text",
 ];
 
 var MESSAGE_TEXT_SELECTORS = [
+  // Current Gemini structure (2025): structured-content-container.model-response-text
+  "structured-content-container.model-response-text",
+  "structured-content-container.model-response-text .markdown.markdown-main-panel",
+  "structured-content-container.model-response-text .markdown",
+  // Fallback: generic .model-response-text (works for both old and new structure)
+  ".model-response-text",
+  ".model-response-text .markdown.markdown-main-panel",
+  ".model-response-text .markdown",
+  // Older structure with message-content
   "message-content.model-response-text .markdown.markdown-main-panel",
   "message-content.model-response-text .markdown",
+  "message-content.model-response-text",
+  "message-content .markdown",
+  // Generic markdown selectors
   ".markdown.markdown-main-panel",
   ".markdown-main-panel",
-  "message-content .markdown",
+  ".response-container .markdown",
   ".markdown",
   "p",
 ];
 
+// Selectors to detect streaming is DONE (positive signals - optional)
+var STREAMING_DONE_SELECTORS = [
+  'message-actions',
+  '.response-actions button',
+  'button[aria-label="Copy"]',
+  'button[aria-label*="copy" i]',
+  'button[aria-label*="Good"]',
+  'button[aria-label*="Bad"]',
+];
+
+// Selectors to detect Gemini is still "thinking" (thinking models like 2.5 Pro)
+// During thinking phase, text may briefly stabilize with just the thinking indicator text
+var THINKING_SELECTORS = [
+  '.thinking-indicator',
+  '.thinking',
+  '[data-thinking="true"]',
+  'thinking-content',
+  '.thought-container:not(.thought-collapsed)',
+  'model-response .loading-indicator',
+  'model-response mat-spinner',
+  'model-response .spinner',
+  '.response-container .loading',
+  'model-response circular-progress',
+];
+
 var lastMessageCount = 0;
+var assistantSelectorInUse = ASSISTANT_SELECTORS[0];
 var currentRunId = null;
 var currentRound = null;
 var observer = null;
 var responseCheckInterval = null;
+var responseTimeoutHandle = null;
 
 // --- Debug overlay ---
 
@@ -138,9 +180,138 @@ function findElement(selectors, label) {
   return null;
 }
 
+function getAssistantMessages(preferredSelector) {
+  var selectors = [];
+  if (preferredSelector) selectors.push(preferredSelector);
+  for (var i = 0; i < ASSISTANT_SELECTORS.length; i++) {
+    if (ASSISTANT_SELECTORS[i] !== preferredSelector) {
+      selectors.push(ASSISTANT_SELECTORS[i]);
+    }
+  }
+
+  for (var j = 0; j < selectors.length; j++) {
+    try {
+      var found = document.querySelectorAll(selectors[j]);
+      if (found.length > 0) {
+        return { selector: selectors[j], nodes: found };
+      }
+    } catch (e) {
+      /* skip */
+    }
+  }
+
+  return { selector: selectors[0] || ASSISTANT_SELECTORS[0], nodes: [] };
+}
+
+// Selectors for elements to REMOVE before extracting text
+// These capture thinking indicators, search results, citations, etc.
+var GEMINI_NOISE_SELECTORS = [
+  // Thinking / thought process sections
+  'thinking-content',
+  '.thinking-indicator',
+  '.thinking',
+  '.thought-container',
+  '[data-thinking="true"]',
+  // Loading / progress elements
+  '.loading-indicator',
+  'mat-spinner',
+  'circular-progress',
+  // Action buttons / toolbars inside response
+  'message-actions',
+  '.response-actions',
+  // Code block headers/footers (decoration only)
+  '.code-block-decoration.footer',
+  '.code-block-decoration.header',
+];
+
+function cleanExtractedText(rawText) {
+  if (!rawText) return "";
+  var text = rawText.trim();
+
+  // Remove "Sources" / citations section at the end
+  var sourcesPatterns = [
+    /\n\s*Sources\s*\n[\s\S]*$/i,
+    /\n\s*Sources\s*·[\s\S]*$/i,
+  ];
+  for (var i = 0; i < sourcesPatterns.length; i++) {
+    var cleaned = text.replace(sourcesPatterns[i], '').trim();
+    if (cleaned.length > 0 && cleaned.length < text.length) {
+      text = cleaned;
+      break;
+    }
+  }
+
+  return text;
+}
+
+function extractMessageText(messageEl) {
+  if (!messageEl) return "";
+
+  // Try structured selectors first
+  for (var i = 0; i < MESSAGE_TEXT_SELECTORS.length; i++) {
+    try {
+      var textEl = null;
+      if (messageEl.matches && messageEl.matches(MESSAGE_TEXT_SELECTORS[i])) {
+        textEl = messageEl;
+      } else {
+        textEl = messageEl.querySelector(MESSAGE_TEXT_SELECTORS[i]);
+      }
+
+      if (textEl) {
+        // Clone to avoid modifying actual DOM
+        var clone = textEl.cloneNode(true);
+
+        // Remove noise elements from the clone
+        for (var n = 0; n < GEMINI_NOISE_SELECTORS.length; n++) {
+          try {
+            var noiseEls = clone.querySelectorAll(GEMINI_NOISE_SELECTORS[n]);
+            for (var k = 0; k < noiseEls.length; k++) {
+              noiseEls[k].remove();
+            }
+          } catch (e) { /* skip invalid selector */ }
+        }
+
+        var text = cleanExtractedText(clone.innerText || clone.textContent || "");
+        if (text) {
+          console.log("[" + PROVIDER + "] text found with: " + MESSAGE_TEXT_SELECTORS[i] + " (" + text.length + " chars)");
+          return text;
+        }
+      }
+    } catch (e) {
+      /* skip */
+    }
+  }
+
+  // Fallback: try innerText on the message element directly with noise removal
+  var clone = messageEl.cloneNode(true);
+  for (var n = 0; n < GEMINI_NOISE_SELECTORS.length; n++) {
+    try {
+      var noiseEls = clone.querySelectorAll(GEMINI_NOISE_SELECTORS[n]);
+      for (var k = 0; k < noiseEls.length; k++) {
+        noiseEls[k].remove();
+      }
+    } catch (e) { /* skip */ }
+  }
+  var fallbackText = cleanExtractedText(clone.innerText || clone.textContent || "");
+  if (fallbackText) {
+    console.log("[" + PROVIDER + "] text extracted via fallback innerText (" + fallbackText.length + " chars)");
+  } else {
+    // Debug: log what children exist to help diagnose selector mismatches
+    var childTags = [];
+    for (var c = 0; c < messageEl.children.length && c < 10; c++) {
+      var child = messageEl.children[c];
+      var desc = child.tagName.toLowerCase();
+      if (child.className) desc += "." + (typeof child.className === 'string' ? child.className.split(" ").join(".") : '');
+      childTags.push(desc);
+    }
+    console.warn("[" + PROVIDER + "] extractMessageText: NO text found. Children: " + childTags.join(", "));
+  }
+  return fallbackText;
+}
+
 // --- Insert text (robust, editor-aware approach) ---
 
-function insertText(el, text) {
+async function insertText(el, text) {
   var strategies = [];
 
   if (el.tagName === "TEXTAREA" || el.tagName === "INPUT") {
@@ -176,8 +347,11 @@ function insertText(el, text) {
     // ContentEditable (Quill / rich editor)
     // CRITICAL: Do NOT use el.textContent = "" — it destroys Quill's internal state.
     // Use Selection API + execCommand("delete") to clear content through the editor.
+    // IMPORTANT: Use synthetic paste FIRST for Gemini. execCommand("insertText") with
+    // newlines causes Quill to interpret \n as Enter keypresses, which triggers
+    // Gemini's send-on-Enter behavior and splits the message.
 
-    // Strategy 1: Selection API + delete + insertText (preserves editor state)
+    // Strategy 1: Synthetic clipboard paste (Quill handles paste events, preserves newlines)
     try {
       el.focus();
       var sel = window.getSelection();
@@ -185,25 +359,6 @@ function insertText(el, text) {
       range.selectNodeContents(el);
       sel.removeAllRanges();
       sel.addRange(range);
-      document.execCommand("delete", false, null);
-      var ok = document.execCommand("insertText", false, text);
-      if (ok && (el.textContent || "").trim().length > 0) {
-        strategies.push("select+delete+insertText OK");
-        return { success: true, strategies: strategies };
-      }
-      strategies.push("select+delete+insertText returned " + ok);
-    } catch (e) {
-      strategies.push("select+delete+insertText FAIL " + e.message);
-    }
-
-    // Strategy 2: Synthetic clipboard paste (Quill handles paste events)
-    try {
-      el.focus();
-      var sel2 = window.getSelection();
-      var range2 = document.createRange();
-      range2.selectNodeContents(el);
-      sel2.removeAllRanges();
-      sel2.addRange(range2);
       document.execCommand("delete", false, null);
       var dt = new DataTransfer();
       dt.setData("text/plain", text);
@@ -213,10 +368,37 @@ function insertText(el, text) {
         clipboardData: dt,
       });
       el.dispatchEvent(pasteEvent);
-      strategies.push("synthetic-paste dispatched");
-      return { success: true, strategies: strategies };
+      // Verify text actually appeared
+      await sleep(200);
+      var currentText = (el.textContent || "").trim();
+      if (currentText.length > 0) {
+        strategies.push("synthetic-paste OK (" + currentText.length + " chars)");
+        return { success: true, strategies: strategies };
+      }
+      strategies.push("synthetic-paste dispatched but no text appeared");
     } catch (e) {
       strategies.push("synthetic-paste FAIL " + e.message);
+    }
+
+    // Strategy 2: Selection API + delete + insertText (fallback — may split on newlines)
+    try {
+      el.focus();
+      var sel2 = window.getSelection();
+      var range2 = document.createRange();
+      range2.selectNodeContents(el);
+      sel2.removeAllRanges();
+      sel2.addRange(range2);
+      document.execCommand("delete", false, null);
+      // Replace newlines with spaces to prevent send-on-Enter
+      var sanitized = text.replace(/\n/g, "  ");
+      var ok = document.execCommand("insertText", false, sanitized);
+      if (ok && (el.textContent || "").trim().length > 0) {
+        strategies.push("select+delete+insertText OK (newlines replaced)");
+        return { success: true, strategies: strategies };
+      }
+      strategies.push("select+delete+insertText returned " + ok);
+    } catch (e) {
+      strategies.push("select+delete+insertText FAIL " + e.message);
     }
 
     // Strategy 3: innerHTML fallback (last resort, may not update editor state)
@@ -293,10 +475,12 @@ function triggerEnterKey(el) {
 
 async function handleSendPrompt(msg) {
   try {
-    var existingMsgs = document.querySelectorAll(
-      ASSISTANT_SELECTORS.join(", ")
+    var baseline = getAssistantMessages();
+    assistantSelectorInUse = baseline.selector;
+    lastMessageCount = baseline.nodes.length;
+    console.log(
+      "[" + PROVIDER + "] baseline responses: " + lastMessageCount + " using selector: " + assistantSelectorInUse
     );
-    lastMessageCount = existingMsgs.length;
 
     var input = findElement(INPUT_SELECTORS, "input");
     if (!input) {
@@ -318,7 +502,7 @@ async function handleSendPrompt(msg) {
     input.click();
     await sleep(200);
 
-    var result = insertText(input, msg.text);
+    var result = await insertText(input, msg.text);
     console.log(
       "[" + PROVIDER + "] insert: " + result.strategies.join(" > ")
     );
@@ -374,39 +558,89 @@ async function handleSendPrompt(msg) {
 function startResponseObserver() {
   if (observer) observer.disconnect();
   if (responseCheckInterval) clearInterval(responseCheckInterval);
+  if (responseTimeoutHandle) {
+    clearTimeout(responseTimeoutHandle);
+    responseTimeoutHandle = null;
+  }
 
   var checkForResponse = function () {
-    // Find model-response elements
-    var messages = document.querySelectorAll('model-response');
-    console.log("[" + PROVIDER + "] poll: " + messages.length + " model-response elements, lastCount=" + lastMessageCount);
+    var snapshot = getAssistantMessages(assistantSelectorInUse);
+    assistantSelectorInUse = snapshot.selector;
+    var messages = snapshot.nodes;
+    console.log("[" + PROVIDER + "] poll: " + messages.length + " response elements, lastCount=" + lastMessageCount + ", selector=" + assistantSelectorInUse);
 
-    if (!messages || messages.length <= lastMessageCount) return false;
+    if (!messages.length || messages.length <= lastMessageCount) return false;
     var latestMsg = messages[messages.length - 1];
 
-    var text = "";
-    for (var j = 0; j < MESSAGE_TEXT_SELECTORS.length; j++) {
-      var textEl = latestMsg.querySelector(MESSAGE_TEXT_SELECTORS[j]);
-      if (textEl && textEl.textContent.trim()) {
-        text = textEl.textContent.trim();
-        console.log("[" + PROVIDER + "] text found with: " + MESSAGE_TEXT_SELECTORS[j] + " (" + text.length + " chars)");
-        break;
-      }
+    // Check if Gemini is still in "thinking" phase
+    // Thinking models (like Gemini 2.5 Pro) show a thinking indicator before actual response
+    var isThinking = false;
+    for (var ti = 0; ti < THINKING_SELECTORS.length; ti++) {
+      try {
+        if (latestMsg.querySelector(THINKING_SELECTORS[ti]) || document.querySelector(THINKING_SELECTORS[ti])) {
+          isThinking = true;
+          console.log("[" + PROVIDER + "] thinking phase detected: " + THINKING_SELECTORS[ti]);
+          break;
+        }
+      } catch (e) { /* skip */ }
     }
-    if (!text) text = (latestMsg.textContent || "").trim();
+
+    // Also detect thinking by checking if the response area is still loading
+    // (shimmer/skeleton UI or progress indicator visible in the response container)
+    if (!isThinking) {
+      try {
+        var responseContainer = latestMsg.closest('model-response') || latestMsg;
+        var loadingEls = responseContainer.querySelectorAll('[class*="loading"], [class*="spinner"], [class*="progress"], [class*="shimmer"]');
+        if (loadingEls.length > 0) {
+          isThinking = true;
+          console.log("[" + PROVIDER + "] loading/shimmer detected in response container");
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    if (isThinking) {
+      // Reset stability tracking during thinking phase
+      latestMsg._lastTextLen = undefined;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+
+    var text = extractMessageText(latestMsg);
     if (text.length === 0) {
-      console.log("[" + PROVIDER + "] no text content yet");
+      console.log("[" + PROVIDER + "] no text content yet (selector: " + assistantSelectorInUse + ")");
       return false;
     }
 
-    // Gemini streaming detection (research-backed):
-    var hasStopBtn = !!document.querySelector('button[aria-label*="Stop"]');
-    var hasSpinner = !!document.querySelector('mat-spinner') || !!document.querySelector('[role="progressbar"]');
-    var hasActions = !!latestMsg.querySelector('message-actions');
-    console.log("[" + PROVIDER + "] streaming check: stopBtn=" + hasStopBtn + " spinner=" + hasSpinner + " hasActions=" + hasActions);
-
-    if (hasStopBtn || hasSpinner || !hasActions) {
-      console.log("[" + PROVIDER + "] still streaming, waiting...");
+    // Skip extremely short responses that are likely just thinking indicator text
+    // (e.g. "Gemini said" placeholder or thinking summary)
+    if (text.length < 20) {
+      console.log("[" + PROVIDER + "] text too short (" + text.length + " chars), likely placeholder - skipping");
+      latestMsg._lastTextLen = undefined;
+      latestMsg._stableCount = 0;
       return false;
+    }
+
+    // Check for DONE indicators (optional positive signal)
+    // Search in latestMsg and also in the parent model-response element
+    var hasDoneSignal = false;
+    var doneSearchRoots = [latestMsg];
+    try {
+      var modelResponseParent = latestMsg.closest('model-response');
+      if (modelResponseParent && modelResponseParent !== latestMsg) {
+        doneSearchRoots.push(modelResponseParent);
+      }
+    } catch (e) { /* skip */ }
+    for (var di = 0; di < STREAMING_DONE_SELECTORS.length; di++) {
+      try {
+        for (var ri = 0; ri < doneSearchRoots.length; ri++) {
+          if (doneSearchRoots[ri].querySelector(STREAMING_DONE_SELECTORS[di])) {
+            hasDoneSignal = true;
+            console.log("[" + PROVIDER + "] done signal found: " + STREAMING_DONE_SELECTORS[di]);
+            break;
+          }
+        }
+        if (hasDoneSignal) break;
+      } catch (e) { /* skip */ }
     }
 
     // Content stability check: wait for text to stop changing
@@ -421,7 +655,15 @@ function startResponseObserver() {
       return false;
     }
     latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
-    if (latestMsg._stableCount < 2) return false; // need 2 stable polls (~4s)
+
+    // If we have a done signal, only need 1 stable poll; otherwise need 3
+    var requiredStable = hasDoneSignal ? 1 : 3;
+    if (latestMsg._stableCount < requiredStable) {
+      console.log("[" + PROVIDER + "] stability: " + latestMsg._stableCount + "/" + requiredStable + (hasDoneSignal ? " (done signal found)" : " (no done signal, using stability only)"));
+      return false;
+    }
+
+    console.log("[" + PROVIDER + "] response complete! " + text.length + " chars, stable=" + latestMsg._stableCount + ", doneSignal=" + hasDoneSignal);
 
     chrome.runtime.sendMessage({
       type: "NEW_MESSAGE",
@@ -445,6 +687,10 @@ function startResponseObserver() {
       clearInterval(responseCheckInterval);
       responseCheckInterval = null;
     }
+    if (responseTimeoutHandle) {
+      clearTimeout(responseTimeoutHandle);
+      responseTimeoutHandle = null;
+    }
     return true;
   };
 
@@ -464,7 +710,12 @@ function startResponseObserver() {
 
   responseCheckInterval = setInterval(checkForResponse, 2000);
 
-  setTimeout(function () {
+  responseTimeoutHandle = setTimeout(function () {
+    var stillWaiting = !!responseCheckInterval || !!observer;
+    if (!stillWaiting) {
+      responseTimeoutHandle = null;
+      return;
+    }
     if (responseCheckInterval) {
       clearInterval(responseCheckInterval);
       responseCheckInterval = null;
@@ -473,6 +724,7 @@ function startResponseObserver() {
       observer.disconnect();
       observer = null;
     }
+    responseTimeoutHandle = null;
     emitError(
       "RESPONSE_TIMEOUT",
       "Timed out waiting for response after 5min"

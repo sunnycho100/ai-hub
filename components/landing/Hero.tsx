@@ -22,7 +22,7 @@ export function Hero() {
 
           {/* Subtitle */}
           <p className="mb-10 text-lg text-muted-foreground md:text-xl">
-            Run coordinated debates across ChatGPT, Gemini, and Grok, with transparent, traceable outputs.
+            Run coordinated debates across ChatGPT, Gemini, and more, with transparent, traceable outputs.
           </p>
 
           {/* CTA Buttons */}

@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.1] - 2026-02-11 - Fix Gemini response extraction and filter search/thinking metadata
+
+### Fixed
+- **Gemini response extraction** — Updated DOM selectors to match current gemini.google.com structure
+  - Added `structured-content-container.model-response-text` selector (Gemini's new response container as of 2025)
+  - Researched current selectors from actively-maintained userscripts (Gemini Response Collapse, GeminiPilot)
+  - Reorganized `MESSAGE_TEXT_SELECTORS` to prioritize new structure while keeping legacy fallbacks
+  - Response text now extracted successfully after completion
+- **ChatGPT search/thinking mode filtering** — Strip Sources, citations, and thinking metadata from responses
+  - Clones response element before extraction to avoid modifying actual DOM
+  - Removes noise elements: `[class*="sources"]`, `[class*="citation"]`, `[class*="search-result"]`, `details`, `summary`, `[class*="thought"]`
+  - Regex cleanup removes "Sources · N" section and all web result previews
+  - Strips leading "Thought for Xs" / "Thinking" / "Searching for..." lines
+  - Response now contains only the actual answer text, not 40+ search result snippets
+- **Gemini thinking mode filtering** — Similar cleanup for Gemini 2.5 Pro thinking models
+  - Removes `thinking-content`, `.thinking-indicator`, `.thought-container`, loading/spinner elements
+  - Strips trailing "Sources" sections
+  - Prevents thinking indicator text from being extracted as the response
+
+### Changed
+- **Text extraction method** — Both ChatGPT and Gemini now use `innerText` instead of `textContent`
+  - `innerText` naturally skips hidden elements (action buttons, toolbars)
+  - More accurate representation of what users see on screen
+- **STREAMING_DONE_SELECTORS check** — Now searches both `latestMsg` AND parent `model-response` element
+  - Action buttons (copy, thumbs up/down) may be siblings rather than children of text container
+  - More reliable completion signal detection
+- **Diagnostic logging** — `extractMessageText()` now logs which selector matched and dumps child element tags when extraction fails
+
+### Technical Details
+- **Root cause (Gemini)** — Gemini updated its DOM structure; old selectors (`message-content.model-response-text`) no longer matched
+- **Root cause (ChatGPT search)** — When ChatGPT uses web search, the `.markdown` container includes thinking process, actual response, AND a massive Sources section with 40+ link previews
+- **Solution** — Clone → strip noise → extract text → regex cleanup pipeline ensures only the actual response content is sent to AI Hub
+
+---
+
 ## [0.1.0] - 2026-02-11 - Add Claude provider to browser extension
 
 ### Added

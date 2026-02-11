@@ -40,11 +40,26 @@ var MESSAGE_TEXT_SELECTORS = [
   "p",
 ];
 
+// Positive signals that response generation is complete
+// (action buttons that appear only after ChatGPT finishes streaming)
+var RESPONSE_DONE_SELECTORS = [
+  'button[data-testid="copy-turn-action-button"]',
+  'button[aria-label="Copy"]',
+  'button[data-testid="thumbs-up-turn-action-button"]',
+  'button[data-testid="thumbs-down-turn-action-button"]',
+  'button[aria-label*="Good response"]',
+  'button[aria-label*="Bad response"]',
+  'button[data-testid="read-aloud-turn-action-button"]',
+  'button[aria-label="Read aloud"]',
+];
+
 var lastMessageCount = 0;
+var assistantSelectorInUse = ASSISTANT_SELECTORS[0];
 var currentRunId = null;
 var currentRound = null;
 var observer = null;
 var responseCheckInterval = null;
+var responseTimeoutHandle = null;
 
 // --- Debug overlay ---
 
@@ -126,6 +141,125 @@ function findElement(selectors, label) {
     }
   }
   return null;
+}
+
+function getAssistantMessages(preferredSelector) {
+  var selectors = [];
+  if (preferredSelector) selectors.push(preferredSelector);
+  for (var i = 0; i < ASSISTANT_SELECTORS.length; i++) {
+    if (ASSISTANT_SELECTORS[i] !== preferredSelector) {
+      selectors.push(ASSISTANT_SELECTORS[i]);
+    }
+  }
+
+  for (var j = 0; j < selectors.length; j++) {
+    try {
+      var found = document.querySelectorAll(selectors[j]);
+      if (found.length > 0) {
+        return { selector: selectors[j], nodes: found };
+      }
+    } catch (e) {
+      /* skip */
+    }
+  }
+
+  return { selector: selectors[0] || ASSISTANT_SELECTORS[0], nodes: [] };
+}
+
+// Selectors for elements to REMOVE before extracting text
+// These capture search results, sources, citations, thinking/searching metadata
+var NOISE_SELECTORS = [
+  // Sources / citations section
+  '[class*="sources"]',
+  '[class*="citation"]',
+  '[data-testid*="source"]',
+  '[data-testid*="citation"]',
+  // Search result cards / web results
+  '[class*="search-result"]',
+  '[class*="web-result"]',
+  '[class*="SearchResult"]',
+  // Thinking / searching collapsible sections
+  '[class*="thought"]',
+  'details',
+  'summary',
+  // Link preview cards with favicons/metadata
+  'a[class*="group"]',
+  // Toolbar / action buttons inside the markdown
+  '[class*="toolbar"]',
+];
+
+function cleanExtractedText(rawText) {
+  if (!rawText) return "";
+  var text = rawText.trim();
+
+  // Remove "Sources" / "Sources · N" section and everything after it
+  // This pattern catches the common format: "Sources\n·\nN\n" followed by link listings
+  var sourcesPatterns = [
+    /\n\s*Sources\s*\n[\s\S]*$/i,
+    /\n\s*Sources\s*·[\s\S]*$/i,
+    /\n\s*Sources$[\s\S]*/im,
+  ];
+  for (var i = 0; i < sourcesPatterns.length; i++) {
+    var cleaned = text.replace(sourcesPatterns[i], '').trim();
+    if (cleaned.length > 0 && cleaned.length < text.length) {
+      text = cleaned;
+      break;
+    }
+  }
+
+  // Remove thinking/searching status lines at the beginning
+  text = text.replace(/^(Thought for \d+s?\s*\n?|Thinking\s*\n?|Searching[^\n]*\n?|Looking up[^\n]*\n?|Searching for[^\n]*\n?)+/i, '').trim();
+
+  // Remove trailing metadata lines like "Read more" links
+  text = text.replace(/(\nRead more\s*)+$/gi, '').trim();
+
+  return text;
+}
+
+function extractMessageText(messageEl) {
+  if (!messageEl) return "";
+
+  // Try to find the main markdown content first
+  for (var i = 0; i < MESSAGE_TEXT_SELECTORS.length; i++) {
+    try {
+      var textEl = null;
+      if (messageEl.matches && messageEl.matches(MESSAGE_TEXT_SELECTORS[i])) {
+        textEl = messageEl;
+      } else {
+        textEl = messageEl.querySelector(MESSAGE_TEXT_SELECTORS[i]);
+      }
+
+      if (textEl) {
+        // Clone to avoid modifying actual DOM
+        var clone = textEl.cloneNode(true);
+
+        // Remove noise elements from the clone
+        for (var n = 0; n < NOISE_SELECTORS.length; n++) {
+          try {
+            var noiseEls = clone.querySelectorAll(NOISE_SELECTORS[n]);
+            for (var k = 0; k < noiseEls.length; k++) {
+              noiseEls[k].remove();
+            }
+          } catch (e) { /* skip invalid selector */ }
+        }
+
+        var text = cleanExtractedText(clone.innerText || clone.textContent || "");
+        if (text) {
+          console.log("[" + PROVIDER + "] text extracted with: " + MESSAGE_TEXT_SELECTORS[i] + " (" + text.length + " chars)");
+          return text;
+        }
+      }
+    } catch (e) {
+      /* skip */
+    }
+  }
+
+  // Fallback: use innerText with cleanup
+  var fallback = cleanExtractedText(messageEl.innerText || messageEl.textContent || "");
+  if (fallback) {
+    console.log("[" + PROVIDER + "] text extracted via fallback (" + fallback.length + " chars)");
+  }
+  return fallback;
 }
 
 // --- Insert text (robust, editor-aware approach) ---
@@ -288,13 +422,12 @@ function triggerEnterKey(el) {
 
 async function handleSendPrompt(msg) {
   try {
-    // Count existing assistant messages
-    var existingMsgs = document.querySelectorAll(
-      ASSISTANT_SELECTORS.join(", ")
-    );
-    lastMessageCount = existingMsgs.length;
+    // Capture baseline response count using one consistent selector
+    var baseline = getAssistantMessages();
+    assistantSelectorInUse = baseline.selector;
+    lastMessageCount = baseline.nodes.length;
     console.log(
-      "[" + PROVIDER + "] existing assistant messages: " + lastMessageCount
+      "[" + PROVIDER + "] existing assistant messages: " + lastMessageCount + " using selector: " + assistantSelectorInUse
     );
 
     // Find input element (with retry)
@@ -390,42 +523,71 @@ async function handleSendPrompt(msg) {
 function startResponseObserver() {
   if (observer) observer.disconnect();
   if (responseCheckInterval) clearInterval(responseCheckInterval);
+  if (responseTimeoutHandle) {
+    clearTimeout(responseTimeoutHandle);
+    responseTimeoutHandle = null;
+  }
 
   var checkForResponse = function () {
-    var messages = null;
-    for (var i = 0; i < ASSISTANT_SELECTORS.length; i++) {
-      try {
-        var found = document.querySelectorAll(ASSISTANT_SELECTORS[i]);
-        if (found.length > 0) {
-          messages = found;
-          break;
-        }
-      } catch (e) {
-        /* skip */
-      }
-    }
+    var snapshot = getAssistantMessages(assistantSelectorInUse);
+    assistantSelectorInUse = snapshot.selector;
+    var messages = snapshot.nodes;
 
-    if (!messages || messages.length <= lastMessageCount) return false;
+    if (!messages.length || messages.length <= lastMessageCount) return false;
 
     var latestMsg = messages[messages.length - 1];
-    var text = "";
-    for (var j = 0; j < MESSAGE_TEXT_SELECTORS.length; j++) {
-      var textEl = latestMsg.querySelector(MESSAGE_TEXT_SELECTORS[j]);
-      if (textEl && textEl.textContent.trim()) {
-        text = textEl.textContent.trim();
-        break;
-      }
-    }
-    if (!text) text = (latestMsg.textContent || "").trim();
+    var text = extractMessageText(latestMsg);
     if (text.length === 0) return false;
 
-    // Check if still streaming
+    // Check if still streaming (negative signals)
     var isStreaming =
       !!document.querySelector('button[aria-label="Stop generating"]') ||
       !!document.querySelector('[data-testid="stop-button"]') ||
       !!latestMsg.querySelector('[class*="result-streaming"]');
 
-    if (isStreaming) return false;
+    if (isStreaming) {
+      // Reset stability when streaming
+      latestMsg._lastTextLen = undefined;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+
+    // Check for positive completion signals (action buttons that appear when done)
+    // Look in the parent article/turn container as action buttons may be outside the message div
+    var searchRoot = latestMsg.closest('article') || latestMsg.closest('[data-testid*="conversation-turn"]') || latestMsg;
+    var hasDoneSignal = false;
+    for (var di = 0; di < RESPONSE_DONE_SELECTORS.length; di++) {
+      try {
+        if (searchRoot.querySelector(RESPONSE_DONE_SELECTORS[di])) {
+          hasDoneSignal = true;
+          console.log("[" + PROVIDER + "] done signal found: " + RESPONSE_DONE_SELECTORS[di]);
+          break;
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    // Content stability check: wait for text to stop changing
+    if (!latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    if (text.length !== latestMsg._lastTextLen) {
+      latestMsg._lastTextLen = text.length;
+      latestMsg._stableCount = 0;
+      return false;
+    }
+    latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
+
+    // If we have a done signal (copy/thumbs buttons visible), need 1 stable poll
+    // Otherwise need 3 stable polls to be sure streaming is truly complete
+    var requiredStable = hasDoneSignal ? 1 : 3;
+    if (latestMsg._stableCount < requiredStable) {
+      console.log("[" + PROVIDER + "] stability: " + latestMsg._stableCount + "/" + requiredStable + (hasDoneSignal ? " (done signal found)" : " (waiting for text stability)"));
+      return false;
+    }
+
+    console.log("[" + PROVIDER + "] response complete! " + text.length + " chars, stable=" + latestMsg._stableCount + ", doneSignal=" + hasDoneSignal);
 
     // Complete response
     chrome.runtime.sendMessage({
@@ -454,6 +616,10 @@ function startResponseObserver() {
       clearInterval(responseCheckInterval);
       responseCheckInterval = null;
     }
+    if (responseTimeoutHandle) {
+      clearTimeout(responseTimeoutHandle);
+      responseTimeoutHandle = null;
+    }
     return true;
   };
 
@@ -476,7 +642,12 @@ function startResponseObserver() {
   responseCheckInterval = setInterval(checkForResponse, 2000);
 
   // 5 minute timeout
-  setTimeout(function () {
+  responseTimeoutHandle = setTimeout(function () {
+    var stillWaiting = !!responseCheckInterval || !!observer;
+    if (!stillWaiting) {
+      responseTimeoutHandle = null;
+      return;
+    }
     if (responseCheckInterval) {
       clearInterval(responseCheckInterval);
       responseCheckInterval = null;
@@ -485,6 +656,7 @@ function startResponseObserver() {
       observer.disconnect();
       observer = null;
     }
+    responseTimeoutHandle = null;
     emitError(
       "RESPONSE_TIMEOUT",
       "Timed out waiting for response after 5min"
@@ -526,3 +698,60 @@ if (document.readyState === "complete") {
 
 // Re-register periodically (MV3 service worker may restart and lose tab registry)
 setInterval(register, 30000);
+
+// --- Auto-dismiss "I prefer this response" comparison dialog ---
+// ChatGPT sometimes shows a preference UI when it regenerates or A/B tests.
+// We auto-click the left option to dismiss it and unblock the pipeline.
+
+function dismissPreferenceDialog() {
+  try {
+    // Look for the preference/comparison buttons
+    // ChatGPT uses buttons with text like "I prefer this response" or
+    // a comparison card with two response options
+    var prefButtons = document.querySelectorAll(
+      'button[data-testid*="prefer"], ' +
+      'button[data-testid*="comparison"], ' +
+      '[data-testid*="thumbs"] button'
+    );
+    if (prefButtons.length >= 2) {
+      console.log("[" + PROVIDER + "] found preference buttons (" + prefButtons.length + "), clicking left");
+      prefButtons[0].click();
+      showDebug("Auto-dismissed preference dialog (left)");
+      return;
+    }
+
+    // Alternative: look for the comparison container with two side-by-side choices
+    var comparisonCards = document.querySelectorAll(
+      '[class*="comparison"] button, ' +
+      '[class*="prefer"] button'
+    );
+    if (comparisonCards.length >= 2) {
+      console.log("[" + PROVIDER + "] found comparison cards (" + comparisonCards.length + "), clicking first");
+      comparisonCards[0].click();
+      showDebug("Auto-dismissed comparison (left)");
+      return;
+    }
+
+    // Search by button text content
+    var allButtons = document.querySelectorAll('button');
+    for (var i = 0; i < allButtons.length; i++) {
+      var btnText = (allButtons[i].textContent || "").trim().toLowerCase();
+      if (
+        btnText.includes("i prefer this response") ||
+        btnText.includes("prefer response") ||
+        btnText.includes("choose this response") ||
+        btnText === "choose"
+      ) {
+        console.log("[" + PROVIDER + "] found preference button by text: '" + btnText + "'");
+        allButtons[i].click();
+        showDebug("Auto-dismissed preference dialog");
+        return;
+      }
+    }
+  } catch (e) {
+    /* ignore errors in preference dismissal */
+  }
+}
+
+// Check every 2 seconds for preference dialogs
+setInterval(dismissPreferenceDialog, 2000);
