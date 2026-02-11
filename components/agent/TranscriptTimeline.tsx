@@ -10,17 +10,17 @@ interface TranscriptTimelineProps {
 }
 
 const PROVIDER_BADGE: Record<Provider, string> = {
-  chatgpt: "bg-muted text-foreground",
-  gemini: "bg-muted text-foreground",
-  grok: "bg-muted text-foreground",
+  chatgpt: "bg-emerald-50 text-emerald-700",
+  gemini: "bg-violet-50 text-violet-700",
+  grok: "bg-sky-50 text-sky-700",
 };
 
 export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
   const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
   return (
-    <Card>
-      <CardHeader className="pb-3 border-b border-border/50">
+    <Card className="bg-card/90">
+      <CardHeader className="pb-3 border-b border-border/70">
         <div className="flex items-center gap-2">
           <ScrollText className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base font-semibold text-foreground">Transcript Timeline</CardTitle>

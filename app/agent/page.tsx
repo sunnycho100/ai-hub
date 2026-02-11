@@ -509,7 +509,7 @@ export default function AgentPage() {
   const apiMessages = apiCurrentRun?.messages || [];
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-8 max-w-7xl">
       {/* Header Row */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -520,7 +520,7 @@ export default function AgentPage() {
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-secondary border border-border/80 flex items-center justify-center shadow-sm">
               <MessageSquare className="h-5 w-5 text-foreground" />
             </div>
             <div>
@@ -545,7 +545,7 @@ export default function AgentPage() {
               connectedProviders={connectedProviders}
             />
           ) : (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-secondary text-secondary-foreground font-medium">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-accent text-accent-foreground font-medium">
               API Mode
             </span>
           )}
@@ -580,11 +580,11 @@ export default function AgentPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="mb-6 flex items-center gap-2">
+      <div className="mb-6 flex items-center gap-2 rounded-xl border border-border/80 bg-card/70 p-1.5 w-fit shadow-sm">
         <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
             activeTab === "extension"
-              ? "bg-primary text-primary-foreground border-primary"
+              ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background text-muted-foreground border-input hover:text-foreground"
           }`}
           onClick={() => setActiveTab("extension")}
@@ -592,9 +592,9 @@ export default function AgentPage() {
           Agent Communication
         </button>
         <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
             activeTab === "api"
-              ? "bg-primary text-primary-foreground border-primary"
+              ? "bg-primary text-primary-foreground border-primary shadow-sm"
               : "bg-background text-muted-foreground border-input hover:text-foreground"
           }`}
           onClick={() => setActiveTab("api")}
