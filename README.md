@@ -4,11 +4,31 @@ A unified workspace for AI-powered tools — agent collaboration, content verifi
 
 ## Project Overview
 
-AI Hub is a student productivity platform that brings together three core AI capabilities:
+AI Hub is a **Layer-2 AI system** built on top of existing Large Language Models (LLMs), without training new foundation models. The core philosophy is to treat the LLM as a general intelligence engine and add higher-level layers on top: workflow orchestration, memory, trust, and style learning.
 
-1. **Agent Communication** — Multi-model debate and collaboration (implemented)
-2. **AI Verifier** — Search and verification pipeline (planned)
-3. **AI Writer** — User-style-conditioned writing assistant (planned)
+### The Four Layers
+
+1. **Agent Orchestration Layer** — Multi-model debate and collaboration (partially implemented)
+   - Decomposes user requests into multiple execution steps
+   - Assigns each step to role-specific LLM agents
+   - Manages execution order and merges results deterministically
+
+2. **LLM Memory & State Layer** (TODO)
+   - Solves the LLM session volatility problem
+   - Persists user preferences, decisions, and summaries across sessions
+   - Controls what to remember, summarize, and forget
+
+3. **LLM Verification & Trust Layer** (TODO)
+   - Validates factual accuracy, logical consistency, and source grounding
+   - Acts as a gatekeeper that decides whether content is safe to release
+   - Blocks or softens unverified outputs
+
+4. **AI Writing Layer** (TODO)
+   - Learns the user's writing style from past samples
+   - Preserves the user's "voice" when generating new content
+   - Ensures stylistic consistency rather than generic AI output
+
+### Current Implementation
 
 The Agent Communication tool uses a **hybrid architecture**: a Next.js orchestrator coordinates multi-round debates while a Chrome extension automates prompt delivery and response scraping inside real AI chat tabs.
 
@@ -36,10 +56,23 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - Dark navy background, translucent glass cards, cyan accent system
 - All pages restyled: landing, agent, verifier, writer
 
-**Phase 3: Verifier & Writer — Planned**
-- AI Verifier and AI Writer tools
-- Spring Boot product backend, FastAPI AI engine
-- PostgreSQL, Redis, S3
+**Phase 3: Memory & State Layer — Planned (TODO)**
+- User preference persistence across sessions
+- Short-term and long-term memory classification
+- Markdown/JSON format storage
+- Context retrieval and re-injection
+
+**Phase 4: Verification & Trust Layer — Planned (TODO)**
+- Claim extraction from draft responses
+- Evidence verification via web search and RAG
+- Logic and consistency checks
+- Verification logging
+
+**Phase 5: AI Writing Layer — Planned (TODO)**
+- User writing sample collection
+- Tone, structure, and pattern analysis
+- Structured style profile generation (JSON)
+- Style constraint injection during generation
 
 ## Getting Started
 
@@ -94,7 +127,9 @@ Models are hardcoded in `app/api/agent-api/route.ts` and can be changed by editi
 
 ## Tech Stack
 
-### Frontend (Next.js App)
+### Current Tech Stack (Implemented)
+
+#### Frontend (Next.js App)
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript
 - **Runtime**: React 19
@@ -123,13 +158,37 @@ Models are hardcoded in `app/api/agent-api/route.ts` and can be changed by editi
 
 ### Server API (Next.js Route)
 - **Endpoint**: `/api/agent-api`
-- **Providers**: OpenAI (gpt-4o-mini), Gemini (gemini-2.0-flash-lite), Grok (grok-2-latest)
+- **Providers**: OpenAI (gpt-4o-mini), Gemini (gemini-2.5-flash-lite), Grok (grok-2-latest)
 - **Auth**: API keys via `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
 
-### Backend (Planned)
-- **Product Backend**: Spring Boot (Java)
-- **AI Engine**: FastAPI (Python)
-- **Database**: PostgreSQL
+---
+
+### Planned Tech Stack (TODO)
+
+#### Agent Orchestration Backend
+- **Framework**: FastAPI (Python)
+- **Async Processing**: Celery + Redis
+- **LLM APIs**: OpenAI / Anthropic / Gemini
+- **Structured Outputs**: JSON Schema-based responses
+
+#### Memory & State Backend
+- **Database**: PostgreSQL with JSONB
+- **Vector Search**: pgvector extension
+- **File-based Memory**: Markdown (.md)
+- **Summarization**: LLM APIs with classification
+
+#### Verification & Trust Backend
+- **Retrieval**: Web search APIs + internal document RAG
+- **Verification LLMs**: Low-temperature configuration
+- **Result Storage**: PostgreSQL verification logs
+
+#### AI Writing Backend
+- **Style Extraction**: LLM-based analysis
+- **Example Retrieval**: Embeddings + vector search
+- **Constraint Checking**: Rule-based filters
+- **Storage**: PostgreSQL + Markdown
+
+#### Infrastructure
 - **Cache/Queue**: Redis
 - **Storage**: AWS S3
 - **Deployment**: AWS (EC2, RDS, CloudFront)
@@ -314,6 +373,31 @@ ai-hub/
 - Style-conditioned text generation
 - Writing style analysis and matching
 - Multiple modes (academic, casual, technical)
+
+## What You Learn from This Project
+
+### AI / ML Perspective
+- **LLM limitations and structural compensation** — Understanding how to build reliable systems without fine-tuning foundation models
+- **Layer-2 AI design** — Treating LLMs as general intelligence engines and adding orchestration, memory, trust, and style layers on top
+- **Style learning and expressive modeling** — Extracting and preserving user voice without model training
+- **Multi-agent architectures** — Coordinating multiple LLMs for debate, collaboration, and consensus
+
+### Systems / Software Perspective
+- **LLM-centered workflow design** — Building production systems around black-box AI models
+- **Agent-based architectures** — Decomposing tasks across role-specific agents with deterministic orchestration
+- **Asynchronous execution patterns** — Managing concurrent LLM calls and state synchronization
+- **API-driven integration** — Connecting multiple AI providers with unified interfaces
+- **Chrome extension automation** — Deep DOM manipulation across different web architectures (ProseMirror, Quill, React)
+
+### Practical / Industry Perspective
+- **Solving LLM memory problems** — Using Markdown, databases, and vector search for persistent context
+- **Trustworthy AI systems** — Designing verification layers and auditable workflows
+- **Full AI product pipeline** — From prototype to production-ready system with real user interfaces
+- **Hybrid architectures** — Combining browser automation with server-side API orchestration
+
+### Summary
+
+This project is **not about building new AI models**, but about **building systems that use AI correctly and reliably**. The LLM remains a black box, while structure, memory, verification, and style are layered on top to create a production-ready AI system.
 
 ## Design Principles
 

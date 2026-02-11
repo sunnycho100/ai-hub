@@ -99,6 +99,110 @@ Each section represents a milestone suitable for a standalone Git commit.
 
 ---
 
+## Phase 2 – LLM Memory & State Layer (TODO)
+
+### Milestone 9 – Memory Architecture
+- [ ] Design memory classification system (short-term vs long-term)
+- [ ] Create PostgreSQL schema with JSONB for flexible memory storage
+- [ ] Implement pgvector extension for semantic search
+- [ ] Build Markdown-based memory file system
+- [ ] Design memory retrieval API
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 10 – Memory Capture & Storage
+- [ ] Capture user interactions and decisions during runs
+- [ ] Classify information into memory categories
+- [ ] Store memories in Markdown and JSON formats
+- [ ] Implement memory summarization using LLM APIs
+- [ ] Build memory versioning and update logic
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 11 – Memory Retrieval & Context Injection
+- [ ] Build semantic search over memory database
+- [ ] Implement relevance ranking for memory retrieval
+- [ ] Design context injection strategies
+- [ ] Add memory decay and cleanup policies
+- [ ] Create memory management UI
+
+**Status:** ⬜ Not started
+
+---
+
+## Phase 3 – LLM Verification & Trust Layer (TODO)
+
+### Milestone 12 – Claim Extraction
+- [ ] Build claim extraction from LLM responses
+- [ ] Classify claims by verification priority
+- [ ] Identify factual vs opinion-based statements
+- [ ] Create claim database schema
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 13 – Evidence Verification
+- [ ] Integrate web search APIs for fact-checking
+- [ ] Build internal document RAG system
+- [ ] Implement verification LLM calls (low temperature)
+- [ ] Design confidence scoring algorithm
+- [ ] Store verification results in PostgreSQL
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 14 – Logic & Consistency Checks
+- [ ] Build logical consistency validator
+- [ ] Implement cross-reference checking
+- [ ] Design gatekeeper decision logic
+- [ ] Create verification audit logs
+- [ ] Add verification UI indicators
+
+**Status:** ⬜ Not started
+
+---
+
+## Phase 4 – AI Writing Layer (TODO)
+
+### Milestone 15 – Style Collection & Analysis
+- [ ] Build user writing sample upload system
+- [ ] Implement LLM-based style analysis
+- [ ] Extract tone, structure, and pattern features
+- [ ] Identify forbidden patterns and rules
+- [ ] Generate structured style profile (JSON)
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 16 – Style-Conditioned Generation
+- [ ] Design style constraint injection system
+- [ ] Build embeddings-based example retrieval
+- [ ] Implement rule-based style filters
+- [ ] Create style verification pipeline
+- [ ] Add iterative style refinement
+
+**Status:** ⬜ Not started
+
+---
+
+### Milestone 17 – Writer UI & Workflows
+- [ ] Build writing sample management interface
+- [ ] Create style profile editor
+- [ ] Implement multi-mode writing (academic, casual, technical)
+- [ ] Add before/after comparison view
+- [ ] Build style learning feedback loop
+
+**Status:** ⬜ Not started
+
+---
+
 ## Implementation History
 
 ### Completed
