@@ -1,6 +1,6 @@
 # AI Hub
 
-A unified workspace for AI-powered tools — agent collaboration, content verification, and style-conditioned writing — with a Chrome extension that automates multi-model conversations across ChatGPT, Gemini, and Grok.
+A unified workspace for AI-powered tools — agent collaboration, content verification, and style-conditioned writing — with a Chrome extension that automates multi-model conversations across ChatGPT, Gemini, and Claude.
 
 ## Project Overview
 
@@ -161,10 +161,10 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - **Manifest**: V3 (service worker, no persistent background page)
 - **Language**: JavaScript (vanilla)
 - **Service Worker**: `background.js` — WebSocket client, message router, tab registry
-- **Content Scripts**: Per-provider DOM automation (`chatgpt.js`, `gemini.js`, `grok.js`)
+- **Content Scripts**: Per-provider DOM automation (`chatgpt.js`, `gemini.js`, `claude.js`)
 - **Keepalive**: `chrome.alarms` (every 27s) to prevent MV3 service worker termination
 - **Permissions**: `activeTab`, `scripting`, `tabs`, `alarms`
-- **Host Permissions**: `chatgpt.com`, `gemini.google.com`, `grok.com`, `x.com/i/grok`
+- **Host Permissions**: `chatgpt.com`, `gemini.google.com`, `claude.ai`
 
 ### WebSocket Bus
 - **Library**: `ws` (Node.js)
@@ -248,7 +248,7 @@ This launches the Next.js dev server on port 3000 and the WS bus on port 3333.
    - Open `chrome://extensions/`
    - Enable **Developer mode**
    - Click **Load unpacked** → select the `extension/` folder
-   - Open tabs for ChatGPT, Gemini, and/or Grok
+   - Open tabs for ChatGPT, Gemini, and/or Claude
 
 6. Open [http://localhost:3000/agent](http://localhost:3000/agent) and start a run
 
@@ -304,7 +304,7 @@ ai-hub/
 │   ├── providers/
 │   │   ├── chatgpt.js          # ChatGPT content script
 │   │   ├── gemini.js           # Gemini content script
-│   │   └── grok.js             # Grok content script
+│   │   └── claude.js           # Claude content script
 │   └── icons/                  # Extension icons
 ├── tools/
 │   └── ws-bus/
@@ -345,7 +345,7 @@ ai-hub/
                                           chrome.tabs
                                         ┌───────┼──────────┐
                                         ▼       ▼          ▼
-                                   ChatGPT   Gemini      Grok
+                                   ChatGPT   Gemini     Claude
                                    (content  (content   (content
                                     script)   script)    script)
 ```
@@ -362,7 +362,7 @@ ai-hub/
 |----------|-------------|-------------|-------------------|
 | ChatGPT | `execCommand("insertText")` on ProseMirror contenteditable | `button[data-testid="send-button"]` | `[data-message-author-role="assistant"]` |
 | Gemini | `execCommand("insertText")` on Quill `.ql-editor` | `button[aria-label="Send message"]` | `model-response` (Web Component) |
-| Grok | `nativeValueSetter` on React textarea | `button[aria-label="Submit"]` | `div.message-bubble` with `.markdown`/`.prose` heuristic |
+| Claude | `<p>` element injection on contenteditable | `button[type="submit"]` | `.font-claude-response` / `.font-claude-message` |
 
 **Run system**:
 - 3-round discussion: R1 (Independent answers) → R2 (Critique & improve) → R3 (Reconcile)
@@ -433,7 +433,7 @@ Each AI platform has different DOM architecture requiring different automation a
 
 - **ChatGPT**: ProseMirror contenteditable editor. Uses `textContent = "" → execCommand("insertText")`.
 - **Gemini**: Angular + Quill + Web Components. Streaming completion detected via `message-actions` element presence. Response scraped from `model-response` custom element.
-- **Grok**: React + Tailwind. Requires `nativeValueSetter` (`Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set`) because direct `.value =` doesn't trigger React state. Assistant messages identified by `div.message-bubble` containing `.markdown`/`.prose`.
+- **Claude**: Contenteditable with ProseMirror. Uses Claude-specific `<p>` element injection (`element.innerHTML = ''; const p = document.createElement('p'); p.textContent = text; element.appendChild(p);`). Streaming detected via stop button + text stability. Response scraped from `.font-claude-response` or `.font-claude-message`.
 
 ## License
 

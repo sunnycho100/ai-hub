@@ -12,7 +12,7 @@ interface TranscriptTimelineProps {
 const PROVIDER_BADGE: Record<Provider, string> = {
   chatgpt: "bg-muted text-foreground",
   gemini: "bg-muted text-foreground",
-  grok: "bg-muted text-foreground",
+  claude: "bg-muted text-foreground",
 };
 
 export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {

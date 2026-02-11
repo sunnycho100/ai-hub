@@ -2,15 +2,15 @@
 // AI Hub – Agent Communication Types
 // ─────────────────────────────────────────────
 
-/** The three AI providers supported in Phase 1 */
-export type Provider = "chatgpt" | "gemini" | "grok";
+/** The AI providers supported via browser extension */
+export type Provider = "chatgpt" | "gemini" | "claude";
 
-export const PROVIDERS: Provider[] = ["chatgpt", "gemini", "grok"];
+export const PROVIDERS: Provider[] = ["chatgpt", "gemini", "claude"];
 
 export const PROVIDER_LABELS: Record<Provider, string> = {
   chatgpt: "ChatGPT",
   gemini: "Gemini",
-  grok: "Grok",
+  claude: "Claude",
 };
 
 /** Extended model list including in-progress providers */
@@ -31,7 +31,7 @@ export const MODEL_STATUS: Record<ExtendedProvider, ModelStatus> = {
   chatgpt: "available",
   gemini: "available",
   grok: "in-progress",
-  claude: "in-progress",
+  claude: "available",
   kimi: "in-progress",
 };
 
@@ -39,7 +39,7 @@ export const MODEL_STATUS: Record<ExtendedProvider, ModelStatus> = {
 export const PROVIDER_COLORS: Record<Provider, { text: string; bg: string; hex: string }> = {
   chatgpt: { text: "text-green-500", bg: "bg-green-500", hex: "#10b981" },
   gemini: { text: "text-blue-500", bg: "bg-blue-500", hex: "#3b82f6" },
-  grok: { text: "text-orange-500", bg: "bg-orange-500", hex: "#f97316" },
+  claude: { text: "text-orange-500", bg: "bg-orange-500", hex: "#f97316" },
 };
 
 /** Conversation mode */

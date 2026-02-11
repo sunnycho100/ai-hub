@@ -13,6 +13,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.0] - 2026-02-11 - Add Claude provider to browser extension
+
+### Added
+- **Claude provider** — Complete browser extension content script (`claude.js`, 470+ lines)
+  - Multi-selector input detection: `contenteditable[role="textbox"]`, ProseMirror, fieldset, textarea
+  - 4-strategy text insertion: execCommand insertText, synthetic clipboard paste, Claude-specific `<p>` element injection, innerHTML fallback
+  - Send button detection: `button[type="submit"]`, `aria-label*="Send"`, with Enter key fallback
+  - Response scraping: `.font-claude-response`, `.font-claude-message`, `div[data-test-render-count]`
+  - Streaming detection: Stop button (`aria-label*="Stop"`) + text stability check (2 consecutive stable reads)
+  - MutationObserver + 2s polling with 5min timeout
+  - Debug overlay, error reporting, periodic re-registration
+- **Model selection UI** — Sliding panel on extension tab for selecting active models
+  - Animated transitions with dynamic agent panels
+  - Provider chips with toggle functionality
+  - Visual model selector with icons
+- **Claude branding** — Orange theme (#f97316) for Claude provider
+  - Updated `PROVIDER_ACCENT`, `PROVIDER_DOT`, `PROVIDER_BADGE` color maps
+  - Extension popup updated with Claude status indicator
+
+### Changed
+- **Provider type system** — Added "claude" to `Provider` union type and `PROVIDERS` array
+- **Extension manifest** — Added `https://claude.ai/*` to host_permissions and content_scripts
+- **Model availability** — Set Claude `MODEL_STATUS` to "available"
+
+### Removed
+- **Grok provider** — Removed from extension (manifest, provider types, UI components)
+  - Kept in API mode and `ExtendedProvider` for future support
+- **Gemini debugging** — Gave up on Gemini response extraction after multiple fix attempts
+  - Gemini code remains but user reported it still doesn't work reliably
+
+### Technical Details
+- **DOM research** — Created comprehensive `docs/DOM_SELECTORS_REFERENCE_CLAUDE.md` (602 lines)
+  - Cross-referenced 6 independent production userscripts/extensions
+  - Extracted Claude-specific input/response selectors from AI Chat Assistant, Multi-Platform AI Prompt Manager
+  - Documented ProseMirror-aware text insertion strategy
+- **Implementation pattern** — Follows chatgpt.js reference architecture exactly
+  - Same function structure, error handling, service worker recovery
+  - Robust multi-strategy fallback approach for DOM manipulation
+
+### Notes
+- This is a **major feature addition** warranting minor version bump (0.0.15 → 0.1.0)
+- Extension now supports ChatGPT + Claude (reliable) and Gemini (unreliable)
+- Users can select which models to use via the new model selection UI
+- Build verified passing with `npx next build`
+
+---
+
 ## [0.0.15] - 2026-02-10 - Fix Chrome extension agent communication pipeline
 
 ### Fixed

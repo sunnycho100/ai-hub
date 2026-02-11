@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Hub – Agent Bridge",
   "version": "0.1.0",
-  "description": "Bridges AI Hub orchestrator with ChatGPT, Gemini, and Grok tabs for automated multi-agent conversations.",
+  "description": "Bridges AI Hub orchestrator with ChatGPT and Gemini tabs for automated multi-agent conversations.",
 
   "permissions": [
     "activeTab",
@@ -15,8 +15,7 @@
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
     "https://gemini.google.com/*",
-    "https://grok.com/*",
-    "https://x.com/i/grok*"
+    "https://claude.ai/*"
   ],
 
   "background": {
@@ -36,8 +35,8 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://grok.com/*", "https://x.com/i/grok*"],
-      "js": ["providers/grok.js"],
+      "matches": ["https://claude.ai/*"],
+      "js": ["providers/claude.js"],
       "run_at": "document_idle"
     }
   ],

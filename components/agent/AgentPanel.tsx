@@ -17,13 +17,13 @@ interface AgentPanelProps {
 const PROVIDER_ACCENT: Record<Provider, string> = {
   chatgpt: "text-green-500",
   gemini: "text-blue-500",
-  grok: "text-orange-500",
+  claude: "text-orange-500",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
   chatgpt: "bg-green-500",
   gemini: "bg-blue-500",
-  grok: "bg-orange-500",
+  claude: "bg-orange-500",
 };
 
 export function AgentPanel({
