@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #ffffff;
+  --color-background: #fcfcfd;
   --color-foreground: #09090b;
 
   --color-card: #ffffff;
@@ -10,32 +10,32 @@
   --color-popover: #ffffff;
   --color-popover-foreground: #09090b;
 
-  --color-primary: #18181b;
+  --color-primary: #111827;
   --color-primary-foreground: #ffffff;
 
-  --color-secondary: #f4f4f5;
+  --color-secondary: #f8fafc;
   --color-secondary-foreground: #18181b;
 
-  --color-muted: #f4f4f5;
-  --color-muted-foreground: #71717a;
+  --color-muted: #f3f4f6;
+  --color-muted-foreground: #6b7280;
 
-  --color-accent: #f4f4f5;
+  --color-accent: #eef2ff;
   --color-accent-foreground: #18181b;
 
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
 
-  --color-border: #e4e4e7;
-  --color-input: #e4e4e7;
+  --color-border: #e5e7eb;
+  --color-input: #d1d5db;
   --color-ring: #18181b;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
   /* Custom additions */
-  --color-glass: rgba(255, 255, 255, 0.7);
-  --color-glass-border: #e4e4e7;
-  --color-glass-hover: #f4f4f5;
-  --color-sidebar: #f9fafb;
+  --color-glass: rgba(255, 255, 255, 0.72);
+  --color-glass-border: #e5e7eb;
+  --color-glass-hover: #f8fafc;
+  --color-sidebar: #fafafa;
 }
 
 @layer base {
@@ -44,12 +44,16 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(148, 163, 184, 0.14), transparent 40%),
+      radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.08), transparent 35%);
   }
 }
 
 /* Glass card utility */
 .glass {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid var(--color-border);
-  backdrop-filter: blur(8px);
+  background: var(--color-glass);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 8px 28px rgba(2, 8, 23, 0.06);
+  backdrop-filter: blur(10px);
 }
