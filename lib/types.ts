@@ -141,6 +141,8 @@ export interface PromptSentMsg {
 export interface ErrorMsg {
   type: "ERROR";
   provider: Provider;
+  runId?: string;
+  round?: Round;
   code: string;
   message: string;
   details?: string;

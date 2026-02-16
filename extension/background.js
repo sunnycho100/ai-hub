@@ -47,7 +47,7 @@ function connectWS() {
     wsStatus = "connected";
     broadcastStatus();
 
-    // Announce extension is ready to the web app
+    // Send initial EXTENSION_READY (may have empty providers if service worker just woke)
     wsSend({
       type: "EXTENSION_READY",
       providers: Object.fromEntries(tabRegistry),
@@ -65,28 +65,8 @@ function connectWS() {
     }
 
     // Re-discover content script tabs (in case service worker restarted and lost registry)
-    chrome.tabs.query({}, (tabs) => {
-      for (const tab of tabs) {
-        if (!tab.id) continue;
-        chrome.tabs.sendMessage(tab.id, { type: "PING_CONTENT" }, (response) => {
-          if (chrome.runtime.lastError) return; // no content script in this tab
-          if (response && response.provider) {
-            const existing = tabRegistry.get(response.provider);
-            if (!existing || existing.tabId !== tab.id) {
-              tabRegistry.set(response.provider, { tabId: tab.id, url: tab.url || "" });
-              console.log("[bg] re-discovered " + response.provider + " in tab " + tab.id);
-              wsSend({
-                type: "HELLO_PROVIDER",
-                provider: response.provider,
-                tabId: tab.id,
-                url: tab.url || "",
-              });
-              broadcastStatus();
-            }
-          }
-        });
-      }
-    });
+    // Track completion so we can send an updated EXTENSION_READY after all tabs are pinged
+    discoverTabs();
   };
 
   ws.onmessage = (event) => {
@@ -109,6 +89,8 @@ function connectWS() {
           wsSend({
             type: "ERROR",
             provider: msg.provider,
+            runId: msg.runId,
+            round: msg.round,
             code: "TAB_NOT_FOUND",
             message: `No registered tab for ${msg.provider}. Open ${msg.provider} in a tab and make sure you're logged in.`,
           });
@@ -123,6 +105,8 @@ function connectWS() {
             wsSend({
               type: "ERROR",
               provider: msg.provider,
+              runId: msg.runId,
+              round: msg.round,
               code: "TAB_CLOSED",
               message: `${msg.provider} tab was closed. Please reopen it.`,
             });
@@ -136,6 +120,8 @@ function connectWS() {
               wsSend({
                 type: "ERROR",
                 provider: msg.provider,
+                runId: msg.runId,
+                round: msg.round,
                 code: "SEND_FAILED",
                 message: `Could not reach ${msg.provider} content script: ${chrome.runtime.lastError.message}. Try refreshing the tab.`,
               });
@@ -158,34 +144,14 @@ function connectWS() {
       case "DISCOVER_EXTENSION": {
         // Web app is asking if the extension is alive
         console.log("[bg] received DISCOVER_EXTENSION, responding...");
+        // Send immediate response with current registry
         wsSend({
           type: "EXTENSION_READY",
           providers: Object.fromEntries(tabRegistry),
           timestamp: Date.now(),
         });
-
-        // Also re-discover tabs in case registry is stale
-        chrome.tabs.query({}, (tabs) => {
-          for (const tab of tabs) {
-            if (!tab.id) continue;
-            chrome.tabs.sendMessage(tab.id, { type: "PING_CONTENT" }, (response) => {
-              if (chrome.runtime.lastError) return;
-              if (response && response.provider) {
-                const existing = tabRegistry.get(response.provider);
-                if (!existing || existing.tabId !== tab.id) {
-                  tabRegistry.set(response.provider, { tabId: tab.id, url: tab.url || "" });
-                  console.log("[bg] re-discovered " + response.provider + " in tab " + tab.id);
-                  wsSend({
-                    type: "HELLO_PROVIDER",
-                    provider: response.provider,
-                    tabId: tab.id,
-                    url: tab.url || "",
-                  });
-                }
-              }
-            });
-          }
-        });
+        // Also re-discover tabs (will send updated EXTENSION_READY when done)
+        discoverTabs();
         break;
       }
 
@@ -219,6 +185,71 @@ function wsSend(msg) {
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(msg));
   }
+}
+
+/**
+ * Discover all tabs with content scripts and register them.
+ * Sends individual HELLO_PROVIDER messages as tabs respond,
+ * then a final EXTENSION_READY with the complete registry.
+ */
+function discoverTabs() {
+  chrome.tabs.query({}, (tabs) => {
+    let pending = 0;
+    let found = 0;
+    const tabsWithIds = tabs.filter((t) => t.id);
+    pending = tabsWithIds.length;
+
+    if (pending === 0) {
+      // No tabs to ping — send updated EXTENSION_READY anyway
+      wsSend({
+        type: "EXTENSION_READY",
+        providers: Object.fromEntries(tabRegistry),
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
+    for (const tab of tabsWithIds) {
+      chrome.tabs.sendMessage(tab.id, { type: "PING_CONTENT" }, (response) => {
+        pending--;
+        if (!chrome.runtime.lastError && response && response.provider) {
+          const existing = tabRegistry.get(response.provider);
+          if (!existing || existing.tabId !== tab.id) {
+            tabRegistry.set(response.provider, { tabId: tab.id, url: tab.url || "" });
+            console.log("[bg] re-discovered " + response.provider + " in tab " + tab.id);
+            wsSend({
+              type: "HELLO_PROVIDER",
+              provider: response.provider,
+              tabId: tab.id,
+              url: tab.url || "",
+            });
+            found++;
+          }
+        }
+
+        // After all tabs responded, send a consolidated EXTENSION_READY
+        if (pending === 0 && found > 0) {
+          broadcastStatus();
+          wsSend({
+            type: "EXTENSION_READY",
+            providers: Object.fromEntries(tabRegistry),
+            timestamp: Date.now(),
+          });
+        }
+      });
+    }
+
+    // Safety timeout — if some tabs never respond, send EXTENSION_READY after 3s
+    setTimeout(() => {
+      if (tabRegistry.size > 0) {
+        wsSend({
+          type: "EXTENSION_READY",
+          providers: Object.fromEntries(tabRegistry),
+          timestamp: Date.now(),
+        });
+      }
+    }, 3000);
+  });
 }
 
 // ─── Content Script Message Handling ───────────────────────
@@ -333,10 +364,43 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 
 // ─── Init ──────────────────────────────────────────────────
 
+/**
+ * Re-inject content scripts into matching tabs.
+ * Handles the case where the extension was reloaded and existing tabs
+ * have orphaned (stale) content scripts that can't talk to the new service worker.
+ */
+async function reinjectContentScripts() {
+  const scripts = [
+    { patterns: ["https://chatgpt.com/*", "https://chat.openai.com/*"], file: "providers/chatgpt.js" },
+    { patterns: ["https://gemini.google.com/*"], file: "providers/gemini.js" },
+    { patterns: ["https://claude.ai/*"], file: "providers/claude.js" },
+  ];
+  for (const { patterns, file } of scripts) {
+    try {
+      const tabs = await chrome.tabs.query({ url: patterns });
+      for (const tab of tabs) {
+        if (!tab.id) continue;
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: [file],
+          });
+          console.log("[bg] re-injected " + file + " into tab " + tab.id);
+        } catch (e) {
+          // Tab may not be accessible (e.g. devtools, special pages)
+        }
+      }
+    } catch (e) {
+      // Query may fail for restricted URL patterns
+    }
+  }
+}
+
 // Ensure WS connects on extension install/update and Chrome startup
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("[bg] Extension installed/updated – connecting WS");
+  console.log("[bg] Extension installed/updated – connecting WS + re-injecting content scripts");
   connectWS();
+  reinjectContentScripts();
 });
 
 chrome.runtime.onStartup.addListener(() => {

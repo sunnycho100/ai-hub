@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.3] - 2026-02-15 - Fix Chrome extension race condition: Extension mode now works on first load
+
+### Fixed
+- **Extension service worker startup race condition** — Extension mode no longer requires 30-60 second wait after `bash start.sh`
+  - **Content scripts** (`providers/gemini.js`, `chatgpt.js`, `claude.js`) — Fast registration bursts (every 2s for 30s, then 30s), try-catch wrapper prevents uncaught "Extension context invalidated" errors
+  - **`extension/background.js`** — New `discoverTabs()` sends consolidated `EXTENSION_READY` after tab discovery completes (3s safety timeout), `reinjectContentScripts()` on install/update uses `chrome.scripting.executeScript` for fresh content injection
+  - **`start.sh`** — Replaced fixed `sleep 2` with health-check loop that polls Next.js until ready (up to 30s) before opening Chrome
+
+### Technical Details
+- **Root cause analysis**: Content scripts used 30s re-registration intervals; service worker sent empty `EXTENSION_READY` before async tab discovery; Chrome opened before Next.js was serving, preventing `hubpage.js` injection
+- **Provider registration**: Reduced from 30s gaps to 2s bursts, preventing lost `SEND_PROMPT` messages during startup
+- **Service worker lifecycle**: Proactive content script re-injection ensures fresh connection after extension reload/update
+- **Startup sequence**: Chrome now opens only after localhost health check passes, ensuring `hubpage.js` content script loads correctly
+
+---
+
 ## [0.2.2] - 2026-02-15 - Add Sluggish Liquid Glass page transitions with Framer Motion
 
 ### Added

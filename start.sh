@@ -123,8 +123,23 @@ echo ""
 echo -e "${BLUE}────────────────────────────────────────${NC}"
 echo ""
 
-# Open Chrome in the background after a short delay
-(sleep 2 && open -a "Google Chrome" http://localhost:${NEXT_PORT}) &
+# Open Chrome once Next.js is actually serving (instead of a fixed sleep)
+wait_and_open() {
+  local port=$1
+  local max_wait=30
+  local waited=0
+  while [ $waited -lt $max_wait ]; do
+    if curl -s -o /dev/null -w '' "http://localhost:${port}" 2>/dev/null; then
+      open -a "Google Chrome" "http://localhost:${port}"
+      return 0
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo -e "${YELLOW}⚠ Next.js did not respond within ${max_wait}s — opening browser anyway${NC}"
+  open -a "Google Chrome" "http://localhost:${port}"
+}
+(wait_and_open ${NEXT_PORT}) &
 
 # Start both the Next.js app and WebSocket bus
 PORT=${NEXT_PORT} npm run dev:all

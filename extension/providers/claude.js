@@ -90,20 +90,25 @@ function showDebug(text, isError) {
 // --- Register with background ---
 
 function register() {
-  chrome.runtime.sendMessage(
-    { type: "HELLO_PROVIDER", provider: PROVIDER, url: window.location.href },
-    function (response) {
-      if (chrome.runtime.lastError) {
-        console.warn(
-          "[" + PROVIDER + "] registration failed:",
-          chrome.runtime.lastError.message
-        );
-      } else {
-        console.log("[" + PROVIDER + "] registered with background");
-        showDebug("Connected to AI Hub");
+  try {
+    chrome.runtime.sendMessage(
+      { type: "HELLO_PROVIDER", provider: PROVIDER, url: window.location.href },
+      function (response) {
+        if (chrome.runtime.lastError) {
+          console.warn(
+            "[" + PROVIDER + "] registration failed:",
+            chrome.runtime.lastError.message
+          );
+        } else {
+          console.log("[" + PROVIDER + "] registered with background");
+          showDebug("Connected to AI Hub");
+        }
       }
-    }
-  );
+    );
+  } catch (e) {
+    // Extension context invalidated (extension reloaded) — page needs refresh
+    console.warn("[" + PROVIDER + "] chrome.runtime unavailable:", e.message);
+  }
 }
 
 // --- Handle incoming messages from background ---
@@ -668,5 +673,14 @@ if (document.readyState === "complete") {
   });
 }
 
-// Re-register periodically (MV3 service worker may restart and lose tab registry)
-setInterval(register, 30000);
+// Fast registration bursts for first 30s (every 2s), then every 30s.
+// This ensures the MV3 service worker is woken quickly after startup.
+var _regCount = 0;
+(function _scheduleReg() {
+  var delay = _regCount < 15 ? 2000 : 30000;
+  setTimeout(function () {
+    register();
+    _regCount++;
+    _scheduleReg();
+  }, delay);
+})();
