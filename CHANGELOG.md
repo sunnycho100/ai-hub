@@ -13,6 +13,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.4] - 2026-02-16 - Update Chrome extension icons to match AI Hub branding
+
+### Changed
+- **Chrome extension icons** — Replaced plain dark gray placeholder icons with branded indigo "A" logo
+  - `extension/icons/generate.js` — Rewrote PNG generator to render indigo (`#6366f1`) rounded rectangle with bold white "A" letter, matching the sidebar logo in `Sidebar.tsx` and `Topbar.tsx`
+  - Added `isInsideRoundedRect()` for proper corner rounding and `isLetterA()` for pixel-level letter rendering
+  - Stroke thickness auto-adjusts for small sizes (thicker at 16px for legibility)
+  - Regenerated `icon16.png`, `icon48.png`, `icon128.png`
+- **`extension/icons/icon16.svg`** — Updated fill from `#111827` to `#6366f1`, letter from "H" to "A"
+- **`extension/popup.html`** — Replaced robot emoji (🤖) header icon with branded indigo "A" box, matching extension icon style
+
+### Technical Details
+- **Design match**: Chrome extension icon now mirrors the app logo visible in the Sidebar (`bg-primary/20` box with "A" in `text-primary`) using the solid indigo primary color `#6366f1`
+- **Font rendering**: PNG generator uses geometric math for the letter "A" (two diagonal legs + horizontal crossbar) since no font rendering is available without dependencies
+
+---
+
 ## [0.2.3] - 2026-02-15 - Fix Chrome extension race condition: Extension mode now works on first load
 
 ### Fixed
