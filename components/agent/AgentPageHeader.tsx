@@ -9,6 +9,7 @@ interface AgentPageHeaderProps {
   activeTab: "extension" | "api";
   wsStatus: WSStatus;
   connectedProviders: Provider[];
+  extensionReady?: boolean;
   showNewRun: boolean;
   onNewRun: () => void;
   onToggleHistory: () => void;
@@ -18,6 +19,7 @@ export function AgentPageHeader({
   activeTab,
   wsStatus,
   connectedProviders,
+  extensionReady,
   showNewRun,
   onNewRun,
   onToggleHistory,
@@ -55,6 +57,7 @@ export function AgentPageHeader({
           <ConnectionStatus
             wsStatus={wsStatus}
             connectedProviders={connectedProviders}
+            extensionReady={extensionReady}
           />
         ) : (
           <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">

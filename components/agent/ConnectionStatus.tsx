@@ -8,11 +8,13 @@ import type { WSStatus } from "@/lib/useWebSocket";
 interface ConnectionStatusProps {
   wsStatus: WSStatus;
   connectedProviders: Provider[];
+  extensionReady?: boolean;
 }
 
 export function ConnectionStatus({
   wsStatus,
   connectedProviders,
+  extensionReady,
 }: ConnectionStatusProps) {
   return (
     <div className="flex items-center gap-4 text-xs">
@@ -60,6 +62,16 @@ export function ConnectionStatus({
 
       {wsStatus === "connected" && (
         <div className="flex items-center gap-2">
+          {/* Extension bridge indicator */}
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
+              extensionReady
+                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-medium"
+                : "bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 animate-pulse"
+            }`}
+          >
+            {extensionReady ? "Ext ✓" : "Ext…"}
+          </span>
           {PROVIDERS.map((p) => {
             const connected = connectedProviders.includes(p);
             return (

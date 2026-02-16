@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { useWebSocket } from "@/lib/useWebSocket";
 import { Run, RunSource, Round } from "@/lib/types";
 
@@ -61,6 +62,7 @@ export default function AgentPage() {
         activeTab={activeTab}
         wsStatus={wsStatus}
         connectedProviders={ext.connectedProviders}
+        extensionReady={ext.extensionReady}
         showNewRun={!!showNewRun}
         onNewRun={activeTab === "extension" ? ext.resetRun : api.resetRun}
         onToggleHistory={() =>
@@ -74,7 +76,12 @@ export default function AgentPage() {
 
       {/* ═══ Extension Mode ═══ */}
       {activeTab === "extension" && (
-        <>
+        <motion.div
+          key="ext"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", mass: 0.5, damping: 26, stiffness: 200 }}
+        >
           {history.showHistory && (
             <RunHistoryPanel
               runs={history.extensionRuns}
@@ -142,12 +149,17 @@ export default function AgentPage() {
           </div>
 
           <TranscriptTimeline messages={ext.messages} />
-        </>
+        </motion.div>
       )}
 
       {/* ═══ API Mode ═══ */}
       {activeTab === "api" && (
-        <>
+        <motion.div
+          key="api"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", mass: 0.5, damping: 26, stiffness: 200 }}
+        >
           {history.showApiHistory && (
             <RunHistoryPanel
               runs={history.apiRuns}
@@ -211,7 +223,7 @@ export default function AgentPage() {
           </div>
 
           <TranscriptTimeline messages={api.apiMessages} />
-        </>
+        </motion.div>
       )}
     </div>
   );

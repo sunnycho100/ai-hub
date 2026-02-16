@@ -362,3 +362,22 @@
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.18);
 }
+
+/* ─── Liquid Glass Page Transitions ──────────────────── */
+.liquid-page-transition {
+  will-change: transform, opacity;
+  transform-origin: center top;
+}
+
+/* Chromatic edge shimmer during transition */
+.liquid-chromatic-active {
+  text-shadow:
+    -0.5px 0 1px rgba(99, 102, 241, 0.25),
+     0.5px 0 1px rgba(56, 189, 248, 0.25);
+}
+
+/* GPU compositing hint for stagger children */
+.liquid-stagger-item {
+  will-change: transform, opacity, filter;
+  transform-origin: center center;
+}

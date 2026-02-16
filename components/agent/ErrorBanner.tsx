@@ -15,7 +15,7 @@ export function ErrorBanner({ title, errors, onDismiss }: ErrorBannerProps) {
       {Object.entries(errors).map(([provider, err]) => (
         <div key={provider} className="text-xs text-muted-foreground mb-1">
           <span className="font-medium">
-            {PROVIDER_LABELS[provider as Provider]}:
+            {PROVIDER_LABELS[provider as Provider] || "System"}:
           </span>{" "}
           <span className="font-mono">{err.code}</span> — {err.message}
         </div>

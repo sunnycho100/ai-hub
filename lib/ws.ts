@@ -37,6 +37,8 @@ export function wsConnect(): void {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;
     }
+    // Immediately ask if the extension is alive
+    wsSend({ type: "DISCOVER_EXTENSION" } as WSMessage);
   };
 
   socket.onmessage = (event) => {
@@ -52,12 +54,12 @@ export function wsConnect(): void {
     console.log("[ws] disconnected");
     notifyStatus("disconnected");
     socket = null;
-    // Auto-reconnect after 2s
+    // Auto-reconnect after 1s (fast for startup reliability)
     if (!reconnectTimer) {
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
         wsConnect();
-      }, 2000);
+      }, 1000);
     }
   };
 

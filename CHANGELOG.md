@@ -13,6 +13,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-02-15 - Add Sluggish Liquid Glass page transitions with Framer Motion
+
+### Added
+- **`lib/liquidTransitions.ts`** — Animation variants and spring physics configuration
+  - `liquidSpring` (mass: 1.2, damping: 30, stiffness: 80) — viscous, heavy-glass feel
+  - `childSpring` (mass: 0.8, damping: 24, stiffness: 120) — snappier child stagger spring
+  - `liquidPageVariants` — page enter/exit with opacity, scale, y-offset, and Gaussian blur
+  - `liquidStaggerContainer` / `liquidStaggerChild` — micro-parallax staggered entrance
+  - `chromaticShimmer` — subtle split-color text-shadow on exit
+- **`components/layout/LiquidTabWrapper.tsx`** — `AnimatePresence mode="wait"` wrapper keyed by `usePathname()` for route-level transitions
+- **`components/layout/LiquidStagger.tsx`** — Reusable `<LiquidStagger>` container + `<LiquidStaggerItem>` child for per-section staggered entrances
+- **CSS utilities** in `globals.css` — `.liquid-page-transition` (will-change, backface-visibility, perspective), `.liquid-chromatic-active`, `.liquid-stagger-item`
+
+### Changed
+- **`components/layout/AppShell.tsx`** — Wrapped `{children}` in `<LiquidTabWrapper>` inside `<main>` for automatic route transitions
+- **`app/agent/page.tsx`** — Outer container changed from `<div>` to `<LiquidStagger>`, header/tabs/mode blocks wrapped in `<LiquidStaggerItem>`
+- **`app/writer/page.tsx`** — Converted to `"use client"`, container → `<LiquidStagger>`, each section wrapped in `<LiquidStaggerItem>`
+- **`app/verifier/page.tsx`** — Converted to `"use client"`, container → `<LiquidStagger>`, each section wrapped in `<LiquidStaggerItem>`
+
+### Dependencies
+- **`framer-motion`** — Added as project dependency for physics-based animations
+
+---
+
 ## [0.2.1] - 2026-02-15 - Refactor Agent page: extract custom hooks and UI components
 
 ### Changed

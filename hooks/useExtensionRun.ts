@@ -22,6 +22,11 @@ interface UseExtensionRunParams {
   refreshRuns: () => void;
 }
 
+/** Max times to retry a SEND_PROMPT before giving up */
+const SEND_RETRY_MAX = 3;
+/** Seconds to wait for PROMPT_SENT acknowledgment before retrying */
+const SEND_RETRY_TIMEOUT = 8000;
+
 export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRunParams) {
   // ─── Model selection ──────────────────────────────────
   const [selectedExtModels, setSelectedExtModels] = useState<Set<Provider>>(
@@ -29,6 +34,9 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
   );
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [extMaxRounds, setExtMaxRounds] = useState<number>(2);
+
+  /** Whether the extension has confirmed it's alive on the WS bus */
+  const [extensionReady, setExtensionReady] = useState(false);
 
   const toggleExtModel = useCallback((model: Provider) => {
     setSelectedExtModels((prev) => {
@@ -63,6 +71,85 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
 
   const runStatus: RunStatus = currentRun?.status || "IDLE";
   const messages = currentRun?.messages || [];
+
+  // ─── Retry state for SEND_PROMPT ──────────────────────
+  // Track pending prompts that haven't been ACKed (PROMPT_SENT)
+  const pendingPromptsRef = useRef<
+    Map<
+      string, // key: `${runId}:${provider}:${round}`
+      { msg: WSMessage; retries: number; timer: ReturnType<typeof setTimeout> }
+    >
+  >(new Map());
+
+  /** Send a SEND_PROMPT with automatic retry */
+  const sendWithRetry = useCallback(
+    (msg: WSMessage & { type: "SEND_PROMPT"; runId: string; provider: Provider; round: Round }) => {
+      const key = `${msg.runId}:${msg.provider}:${msg.round}`;
+
+      // Clear any existing retry for this key
+      const existing = pendingPromptsRef.current.get(key);
+      if (existing) clearTimeout(existing.timer);
+
+      const attempt = (retries: number) => {
+        console.log(
+          `[agent] Sending SEND_PROMPT to ${msg.provider} round ${msg.round} (attempt ${retries + 1}/${SEND_RETRY_MAX + 1})`
+        );
+        send(msg);
+
+        const timer = setTimeout(() => {
+          // No PROMPT_SENT received — retry or fail
+          if (retries < SEND_RETRY_MAX) {
+            console.warn(
+              `[agent] No ACK from ${msg.provider} round ${msg.round}, retrying... (${retries + 1}/${SEND_RETRY_MAX})`
+            );
+            // Before retrying, ask the extension if it's alive
+            send({ type: "DISCOVER_EXTENSION" } as WSMessage);
+            attempt(retries + 1);
+          } else {
+            console.error(
+              `[agent] Gave up sending to ${msg.provider} round ${msg.round} after ${SEND_RETRY_MAX + 1} attempts`
+            );
+            pendingPromptsRef.current.delete(key);
+            setProviderErrors((prev) => ({
+              ...prev,
+              [msg.provider]: {
+                code: "SEND_TIMEOUT",
+                message: `Could not reach ${msg.provider} after ${SEND_RETRY_MAX + 1} attempts. Check that the extension is loaded and the provider tab is open.`,
+              },
+            }));
+            setSendingProviders((prev) =>
+              prev.filter((p) => p !== msg.provider)
+            );
+          }
+        }, SEND_RETRY_TIMEOUT);
+
+        pendingPromptsRef.current.set(key, { msg, retries, timer });
+      };
+
+      attempt(0);
+    },
+    [send]
+  );
+
+  /** Clear retry timer when we get a PROMPT_SENT ACK */
+  const clearRetry = useCallback((runId: string, provider: Provider, round: Round) => {
+    const key = `${runId}:${provider}:${round}`;
+    const pending = pendingPromptsRef.current.get(key);
+    if (pending) {
+      clearTimeout(pending.timer);
+      pendingPromptsRef.current.delete(key);
+    }
+  }, []);
+
+  // Clean up all retry timers on unmount
+  useEffect(() => {
+    return () => {
+      for (const entry of pendingPromptsRef.current.values()) {
+        clearTimeout(entry.timer);
+      }
+      pendingPromptsRef.current.clear();
+    };
+  }, []);
 
   // ─── Round completion logic ───────────────────────────
   const checkRoundCompletion = useCallback(
@@ -108,7 +195,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
             ? buildR2Prompt(run.topic, run.mode, provider, run.messages)
             : buildR3Prompt(run.topic, run.mode, provider, run.messages);
 
-        send({
+        sendWithRetry({
           type: "SEND_PROMPT",
           runId: run.id,
           provider,
@@ -124,7 +211,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
         );
       }, 500);
     },
-    [send]
+    [sendWithRetry]
   );
 
   // ─── WebSocket listener ───────────────────────────────
@@ -137,7 +224,24 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
           );
           break;
 
+        case "EXTENSION_READY":
+          console.log("[agent] Extension confirmed ready on the bus");
+          setExtensionReady(true);
+          // Populate connected providers from extension's registry
+          if (msg.providers) {
+            const providers = Object.keys(msg.providers) as Provider[];
+            setConnectedProviders((prev) => {
+              const merged = new Set([...prev, ...providers]);
+              return [...merged];
+            });
+          }
+          break;
+
         case "PROMPT_SENT":
+          // Clear retry timer — the prompt was delivered
+          if ("runId" in msg && "provider" in msg && "round" in msg) {
+            clearRetry(msg.runId, msg.provider, msg.round);
+          }
           setSendingProviders((prev) =>
             prev.filter((p) => p !== msg.provider)
           );
@@ -171,6 +275,16 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
           setSendingProviders((prev) =>
             prev.filter((p) => p !== msg.provider)
           );
+          // Also clear any pending retry for this provider
+          if (runRef.current && "provider" in msg) {
+            const run = runRef.current;
+            const currentRound = run.status.startsWith("R")
+              ? (parseInt(run.status[1]) as Round)
+              : null;
+            if (currentRound) {
+              clearRetry(run.id, msg.provider, currentRound);
+            }
+          }
           break;
 
         case "PING_ACK":
@@ -178,16 +292,48 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
       }
     });
     return unsub;
-  }, [subscribe]);
+  }, [subscribe, clearRetry]);
+
+  // ─── Periodic discovery to detect extension readiness ─
+  useEffect(() => {
+    // Send DISCOVER_EXTENSION every 3 seconds until extension confirms ready
+    if (extensionReady) return;
+
+    const interval = setInterval(() => {
+      console.log("[agent] Sending DISCOVER_EXTENSION...");
+      send({ type: "DISCOVER_EXTENSION" } as WSMessage);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [extensionReady, send]);
 
   // ─── Start run ────────────────────────────────────────
   const handleStart = useCallback(() => {
     if (!topic.trim()) return;
 
+    // Determine which providers to use
     const activeProviders = activeExtProviders.filter((p) =>
       connectedProviders.includes(p)
     );
+
     if (activeProviders.length === 0) {
+      // No providers confirmed connected — show error instead of silently failing
+      if (!extensionReady) {
+        setProviderErrors({
+          _system: {
+            code: "EXTENSION_NOT_READY",
+            message:
+              "The browser extension is not connected. Make sure it's loaded in Chrome and the WebSocket bus is running (ws://localhost:3333).",
+          },
+        });
+        // Try to wake the extension one more time
+        send({ type: "DISCOVER_EXTENSION" } as WSMessage);
+        return;
+      }
+      // Extension is ready but no providers connected — try anyway (tabs may be open)
+      console.warn(
+        "[agent] No providers confirmed connected, attempting run with all selected models..."
+      );
       runProvidersRef.current = [...activeExtProviders];
     } else {
       runProvidersRef.current = activeProviders;
@@ -202,7 +348,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
 
     for (const provider of runProvidersRef.current) {
       const promptText = buildR1Prompt(topic, mode);
-      send({
+      sendWithRetry({
         type: "SEND_PROMPT",
         runId: run.id,
         provider,
@@ -217,11 +363,17 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
         prev ? { ...prev, status: "R1_WAITING" } : prev
       );
     }, 500);
-  }, [topic, mode, send, connectedProviders, activeExtProviders]);
+  }, [topic, mode, sendWithRetry, send, connectedProviders, activeExtProviders, extensionReady]);
 
   // ─── Stop run ─────────────────────────────────────────
   const handleStop = useCallback(() => {
     if (!currentRun) return;
+    // Clear all pending retries
+    for (const entry of pendingPromptsRef.current.values()) {
+      clearTimeout(entry.timer);
+    }
+    pendingPromptsRef.current.clear();
+
     const stopped = updateRunStatus(currentRun.id, "ERROR");
     if (stopped) {
       setCurrentRun({ ...stopped });
@@ -338,6 +490,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
     setProviderErrors,
     runStatus,
     messages,
+    extensionReady,
     // Handlers
     handleStart,
     handleStop,

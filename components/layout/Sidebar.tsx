@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import { navItems } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 
@@ -30,14 +31,21 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                  "relative flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors duration-150",
                   isActive
-                    ? "bg-primary/15 text-primary border border-primary/20 shadow-[0_0_12px_rgba(129,140,248,0.15)]"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]"
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground active:scale-[0.98]"
                 )}
               >
-                <Icon className="h-5 w-5" />
-                <span>{item.title}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-glass-pill"
+                    className="absolute inset-0 rounded-xl bg-primary/15 border border-primary/20 shadow-[0_0_12px_rgba(129,140,248,0.15)]"
+                    transition={{ type: "spring", mass: 0.6, damping: 28, stiffness: 180 }}
+                  />
+                )}
+                <Icon className="relative h-5 w-5" />
+                <span className="relative">{item.title}</span>
               </Link>
             );
           })}

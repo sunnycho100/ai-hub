@@ -152,6 +152,18 @@ export interface PingAckMsg {
   timestamp: number;
 }
 
+/** Extension → HubAI: extension is alive and connected to the bus */
+export interface ExtensionReadyMsg {
+  type: "EXTENSION_READY";
+  providers: Record<string, { tabId: number; url: string }>;
+  timestamp: number;
+}
+
+/** HubAI → Extension: request extension status (discovery handshake) */
+export interface DiscoverExtensionMsg {
+  type: "DISCOVER_EXTENSION";
+}
+
 /** Union of all WS message types */
 export type WSMessage =
   | SendPromptMsg
@@ -161,4 +173,6 @@ export type WSMessage =
   | NewMessageMsg
   | PromptSentMsg
   | ErrorMsg
-  | PingAckMsg;
+  | PingAckMsg
+  | ExtensionReadyMsg
+  | DiscoverExtensionMsg;

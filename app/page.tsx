@@ -5,7 +5,7 @@ import { Footer } from "@/components/landing/Footer";
 
 export default function Home() {
   return (
-    <div className="min-h-full">
+    <div className="flex flex-col flex-1 justify-between min-h-0">
       <Hero />
       <ToolCards />
       <HowItWorks />

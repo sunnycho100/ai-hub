@@ -38,6 +38,16 @@
       "matches": ["https://claude.ai/*"],
       "js": ["providers/claude.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "http://localhost:3000/*",
+        "http://localhost:3001/*",
+        "http://localhost:3002/*",
+        "http://localhost:3003/*"
+      ],
+      "js": ["hubpage.js"],
+      "run_at": "document_start"
     }
   ],
 

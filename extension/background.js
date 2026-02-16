@@ -12,7 +12,7 @@
  */
 
 const WS_URL = "ws://localhost:3333";
-const RECONNECT_DELAY = 3000;
+const RECONNECT_DELAY = 1000; // fast reconnect for startup reliability
 
 // ─── State ─────────────────────────────────────────────────
 let ws = null;
@@ -46,6 +46,13 @@ function connectWS() {
     console.log("[bg] connected to WS bus");
     wsStatus = "connected";
     broadcastStatus();
+
+    // Announce extension is ready to the web app
+    wsSend({
+      type: "EXTENSION_READY",
+      providers: Object.fromEntries(tabRegistry),
+      timestamp: Date.now(),
+    });
 
     // Re-announce all registered providers
     for (const [provider, info] of tabRegistry.entries()) {
@@ -148,6 +155,40 @@ function connectWS() {
         break;
       }
 
+      case "DISCOVER_EXTENSION": {
+        // Web app is asking if the extension is alive
+        console.log("[bg] received DISCOVER_EXTENSION, responding...");
+        wsSend({
+          type: "EXTENSION_READY",
+          providers: Object.fromEntries(tabRegistry),
+          timestamp: Date.now(),
+        });
+
+        // Also re-discover tabs in case registry is stale
+        chrome.tabs.query({}, (tabs) => {
+          for (const tab of tabs) {
+            if (!tab.id) continue;
+            chrome.tabs.sendMessage(tab.id, { type: "PING_CONTENT" }, (response) => {
+              if (chrome.runtime.lastError) return;
+              if (response && response.provider) {
+                const existing = tabRegistry.get(response.provider);
+                if (!existing || existing.tabId !== tab.id) {
+                  tabRegistry.set(response.provider, { tabId: tab.id, url: tab.url || "" });
+                  console.log("[bg] re-discovered " + response.provider + " in tab " + tab.id);
+                  wsSend({
+                    type: "HELLO_PROVIDER",
+                    provider: response.provider,
+                    tabId: tab.id,
+                    url: tab.url || "",
+                  });
+                }
+              }
+            });
+          }
+        });
+        break;
+      }
+
       case "PING_ACK":
         // Ignore pong responses
         break;
@@ -221,6 +262,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       break;
 
+    case "HUB_PAGE_OPENED":
+      // Hub page content script woke us up — ensure WS is connected
+      console.log("[bg] Hub page opened, ensuring WS connection");
+      connectWS();
+      sendResponse({
+        wsStatus,
+        providers: Object.fromEntries(tabRegistry),
+      });
+      break;
+
     case "GET_STATUS":
       // Popup or content script requesting current state
       sendResponse({
@@ -268,7 +319,8 @@ function broadcastStatus() {
 
 // Chrome terminates MV3 service workers after ~30s of inactivity,
 // killing WebSocket connections. Alarms keep it alive.
-chrome.alarms.create("ws-keepalive", { periodInMinutes: 0.45 });
+// Use delayInMinutes for FIRST alarm to fire quickly after extension loads
+chrome.alarms.create("ws-keepalive", { delayInMinutes: 0.083, periodInMinutes: 0.5 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "ws-keepalive") {

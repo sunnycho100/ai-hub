@@ -46,15 +46,21 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - Chrome Extension (Manifest V3) with per-provider content scripts
 - Local WebSocket bus for real-time message routing
 - 3-round discussion system with localStorage persistence
-- Service worker keepalive to prevent MV3 termination
+- Service worker keepalive with multi-layer approach (hubpage bridge, alarms, re-registration)
+- Extension readiness handshake (DISCOVER_EXTENSION / EXTENSION_READY protocol)
+- Automatic SEND_PROMPT retry with timeout (3 attempts, 8s each)
 - API edition (`/api/agent-api`) for in-process, key-based provider calls
+- Extracted hooks: `useExtensionRun`, `useApiRun`, `useRunHistory`
 
 **Phase 2.5: API Mode + UI Redesign — Done**
 - API-based agent communication tab (ChatGPT, Gemini, Grok via API keys)
 - Next.js API route (`/api/agent-api`) for server-side provider calls
-- Glassmorphism dark theme designed with VSCode extension [Pencil](https://marketplace.visualstudio.com/items?itemName=nicepkg.pencil) for a professional UI
-- Dark navy background, translucent glass cards, cyan accent system
-- All pages restyled: landing, agent, verifier, writer
+- Glassmorphism theme with **light/dark mode** toggle (ThemeProvider, localStorage-persisted)
+- Glass design system: CSS custom properties for glass-thick, glass-thin, glass-rim variants
+- Framer Motion animations: spring-physics page transitions, glassmorphism sliding pill indicators
+- Apple-style `layoutId` shared layout animations for sidebar nav and mode tabs
+- All pages restyled: landing (single-viewport), agent, verifier, writer
+- Agent page refactored from 1,065 → 218 lines via component extraction
 
 **Phase 3: Memory & State Layer — Planned (TODO)**
 - User preference persistence across sessions
@@ -149,7 +155,8 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript
 - **Runtime**: React 19
-- **Styling**: Tailwind CSS 4 (glassmorphism dark theme)
+- **Styling**: Tailwind CSS 4 (glassmorphism light/dark theme)
+- **Animations**: Framer Motion (spring physics, layout animations)
 - **UI Components**: shadcn/ui (Radix primitives)
 - **UI Design**: Pencil (VSCode extension) for visual prototyping
 - **Icons**: lucide-react
@@ -160,11 +167,12 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 ### Chrome Extension
 - **Manifest**: V3 (service worker, no persistent background page)
 - **Language**: JavaScript (vanilla)
-- **Service Worker**: `background.js` — WebSocket client, message router, tab registry
+- **Service Worker**: `background.js` — WebSocket client, message router, tab registry, extension readiness handshake
 - **Content Scripts**: Per-provider DOM automation (`chatgpt.js`, `gemini.js`, `claude.js`)
-- **Keepalive**: `chrome.alarms` (every 27s) to prevent MV3 service worker termination
+- **Hub Bridge**: `hubpage.js` — injected into localhost to wake the service worker on page load
+- **Keepalive**: `chrome.alarms` (every 30s, with fast initial fire) to prevent MV3 service worker termination
 - **Permissions**: `activeTab`, `scripting`, `tabs`, `alarms`
-- **Host Permissions**: `chatgpt.com`, `gemini.google.com`, `claude.ai`
+- **Host Permissions**: `chatgpt.com`, `gemini.google.com`, `claude.ai`, `localhost:3000–3003`
 
 ### WebSocket Bus
 - **Library**: `ws` (Node.js)
@@ -273,33 +281,58 @@ ai-hub/
 │   ├── page.tsx                # Landing page
 │   ├── agent/
 │   │   └── page.tsx            # Agent orchestrator (run controls, transcript)
+│   ├── api/
+│   │   └── agent-api/
+│   │       └── route.ts        # Server-side API for agent communication
 │   ├── verifier/
 │   │   └── page.tsx            # AI Verifier (planned)
 │   └── writer/
 │       └── page.tsx            # AI Writer (planned)
+├── hooks/
+│   ├── useExtensionRun.ts      # Extension mode run orchestration (retry, readiness gating)
+│   ├── useApiRun.ts            # API mode run orchestration
+│   └── useRunHistory.ts        # Run history management
 ├── components/
 │   ├── layout/
-│   │   ├── AppShell.tsx        # Main layout shell
-│   │   ├── Sidebar.tsx         # Navigation sidebar
-│   │   └── Topbar.tsx          # Top navigation bar
+│   │   ├── AppShell.tsx        # Main layout shell (theme, landing detection)
+│   │   ├── Sidebar.tsx         # Navigation sidebar (glassmorphism sliding pill)
+│   │   ├── Topbar.tsx          # Top navigation bar
+│   │   ├── LiquidTabWrapper.tsx # Mount-only page transition wrapper
+│   │   └── LiquidStagger.tsx   # Stagger animation container
+│   ├── agent/
+│   │   ├── AgentPageHeader.tsx  # Header with connection status
+│   │   ├── AgentPanel.tsx       # Per-provider message panel
+│   │   ├── ApiModelSelector.tsx # API mode model dropdowns
+│   │   ├── ConnectionStatus.tsx # WS + extension readiness indicator
+│   │   ├── ErrorBanner.tsx      # Error display (per-provider + system)
+│   │   ├── ExtensionModelPicker.tsx # Extension mode model toggles
+│   │   ├── ModeTabs.tsx         # Extension/API tab switcher (glass pill)
+│   │   ├── ProviderIcon.tsx     # Provider brand icons
+│   │   ├── RunControls.tsx      # Topic input, mode toggle, start/stop
+│   │   ├── RunHistoryPanel.tsx  # Historical run browser
+│   │   └── TranscriptTimeline.tsx # Message transcript display
 │   ├── landing/
 │   │   ├── Hero.tsx            # Hero section
 │   │   ├── ToolCards.tsx       # Tool showcase cards
-│   │   ├── HowItWorks.tsx      # Process steps
+│   │   ├── HowItWorks.tsx      # Process steps timeline
 │   │   └── Footer.tsx          # Footer component
 │   └── ui/                     # shadcn/ui components
 ├── lib/
-│   ├── ws.ts                   # WebSocket client (connects to bus on :3333)
+│   ├── ws.ts                   # WebSocket client (connects to bus on :3333, discovery handshake)
 │   ├── useWebSocket.ts         # React hook for WS subscribe/send
 │   ├── store.ts                # Agent state machine + localStorage persistence
-│   ├── types.ts                # Shared TypeScript types
+│   ├── types.ts                # Shared TypeScript types (WS message protocol)
 │   ├── prompts.ts              # Prompt templates for each round
+│   ├── theme.tsx               # Light/dark theme provider
+│   ├── liquidTransitions.ts    # Spring physics & animation variants
+│   ├── mock.ts                 # Mock response generator for testing
 │   ├── nav.ts                  # Navigation configuration
 │   ├── providers.tsx           # React Query provider
 │   └── utils.ts                # Utility functions
 ├── extension/
 │   ├── manifest.json           # Chrome MV3 manifest
-│   ├── background.js           # Service worker (WS client, tab registry, routing)
+│   ├── background.js           # Service worker (WS client, tab registry, readiness protocol)
+│   ├── hubpage.js              # Hub page bridge (wakes service worker on localhost)
 │   ├── popup.html / popup.js   # Extension popup UI
 │   ├── providers/
 │   │   ├── chatgpt.js          # ChatGPT content script
@@ -308,11 +341,12 @@ ai-hub/
 │   └── icons/                  # Extension icons
 ├── tools/
 │   └── ws-bus/
-│       └── server.js           # WebSocket broadcast relay server
+│       ├── server.js           # WebSocket broadcast relay server
+│       └── monitor.js          # Pipeline diagnostic monitor
 ├── docs/                       # Research & reference docs
 ├── start.sh                    # Dev startup script
 └── styles/
-    └── globals.css             # Global styles
+    └── globals.css             # Global styles + glass design system
 ```
 
 ## Application Routes
@@ -334,21 +368,28 @@ ai-hub/
 
 ### Agent Communication (Implemented)
 
-**Architecture**: Hybrid approach — Next.js orchestrator + Chrome extension + local WebSocket bus.
+**Architecture**: Hybrid approach — Next.js orchestrator + Chrome extension + local WebSocket bus, with an extension readiness handshake and automatic retry mechanism.
 
 ```
 ┌──────────────────┐     WebSocket      ┌──────────────────┐
 │   Next.js App    │◄──── :3333 ────►   │ Chrome Extension │
 │   /agent page    │    (broadcast)     │  Service Worker  │
 │  (orchestrator)  │                    │  (background.js) │
-└──────────────────┘                    └───────┬──────────┘
-                                          chrome.tabs
-                                        ┌───────┼──────────┐
-                                        ▼       ▼          ▼
+└──────┬───────────┘                    └───────┬──────────┘
+       │                                  chrome.tabs
+  hubpage.js ──────────────────────►  ┌───────┼──────────┐
+  (wakes service worker on load)      ▼       ▼          ▼
                                    ChatGPT   Gemini     Claude
                                    (content  (content   (content
                                     script)   script)    script)
 ```
+
+**Startup handshake** (fixes MV3 dormancy race condition):
+1. User opens AI Hub page → `hubpage.js` content script fires immediately
+2. `hubpage.js` sends `HUB_PAGE_OPENED` → wakes dormant service worker
+3. Service worker connects to WS bus → sends `EXTENSION_READY` with provider registry
+4. Web app receives `EXTENSION_READY` → shows "Ext ✓" in connection status
+5. If no response, web app sends `DISCOVER_EXTENSION` every 3s until acknowledged
 
 **Message flow**:
 1. User enters a topic on `/agent` → orchestrator sends `SEND_PROMPT` via WebSocket
@@ -366,9 +407,12 @@ ai-hub/
 
 **Run system**:
 - 3-round discussion: R1 (Independent answers) → R2 (Critique & improve) → R3 (Reconcile)
+- Configurable max rounds (1–3) per run
 - Real-time transcript timeline with per-provider status
 - Conversation history persisted in localStorage
 - Error handling with per-provider error display
+- **Automatic retry**: SEND_PROMPT retries up to 3 times (8s timeout) if unacknowledged
+- **Extension readiness gating**: Start Run blocked with clear error if extension not connected
 
 **API edition**:
 - Server-side run mode using `/api/agent-api` with provider API keys
@@ -376,9 +420,11 @@ ai-hub/
 - Uses the same transcript timeline and run history as extension runs
 
 ### UI Shell (Implemented)
-- Responsive sidebar navigation
+- Responsive sidebar navigation with glassmorphism sliding pill indicator
+- Light/dark theme toggle with system preference detection
+- Spring-physics page transitions (mount-only, no exit animation)
+- Stagger entrance animations for page content
 - Mobile-friendly with collapsible nav
-- Clean, minimalistic Tailwind CSS design
 - Type-safe App Router routing
 
 ### AI Verifier (Planned)
@@ -426,7 +472,12 @@ This project is **not about building new AI models**, but about **building syste
 ## Chrome Extension Technical Notes
 
 ### MV3 Service Worker Keepalive
-Chrome terminates Manifest V3 service workers after ~30s of inactivity. The extension uses `chrome.alarms` (every 27 seconds) to keep the service worker alive and reconnect the WebSocket if it drops.
+Chrome terminates Manifest V3 service workers after ~30s of inactivity. The extension uses a multi-layered approach to stay alive:
+
+1. **`hubpage.js` content script**: Injected into the AI Hub page (localhost). Sends `HUB_PAGE_OPENED` messages every 5 seconds, keeping the service worker awake while the page is open.
+2. **`chrome.alarms`**: Fires every 30 seconds as a fallback, reconnecting the WebSocket if it dropped.
+3. **Content script re-registration**: Each provider content script re-registers every 30 seconds via `setInterval(register, 30000)` in case the service worker restarted and lost its tab registry.
+4. **Fast reconnection**: WebSocket reconnect delay is 1 second (both extension and web app) for rapid recovery after bus restart.
 
 ### Provider DOM Strategies
 Each AI platform has different DOM architecture requiring different automation approaches:
