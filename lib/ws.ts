@@ -9,18 +9,44 @@
 import { WSMessage } from "./types";
 
 const WS_URL = "ws://localhost:3333";
+const MAX_OUTBOX = 200;
 
 type MessageHandler = (msg: WSMessage) => void;
 type StatusHandler = (status: "connected" | "disconnected" | "connecting") => void;
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let currentStatus: "connected" | "disconnected" | "connecting" = "disconnected";
+const outbox: WSMessage[] = [];
 
 const messageHandlers = new Set<MessageHandler>();
 const statusHandlers = new Set<StatusHandler>();
 
 function notifyStatus(status: "connected" | "disconnected" | "connecting") {
+  currentStatus = status;
   statusHandlers.forEach((fn) => fn(status));
+}
+
+function enqueueMessage(msg: WSMessage): void {
+  // DISCOVER_EXTENSION is periodic; keep only one pending to avoid queue spam.
+  if (msg.type === "DISCOVER_EXTENSION") {
+    const hasPendingDiscover = outbox.some((m) => m.type === "DISCOVER_EXTENSION");
+    if (hasPendingDiscover) return;
+  }
+
+  outbox.push(msg);
+  if (outbox.length > MAX_OUTBOX) {
+    outbox.shift();
+  }
+}
+
+function flushOutbox(): void {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  while (outbox.length > 0) {
+    const next = outbox.shift();
+    if (!next) break;
+    socket.send(JSON.stringify(next));
+  }
 }
 
 /** Connect to the WS bus. Auto-reconnects on close. */
@@ -28,7 +54,18 @@ export function wsConnect(): void {
   if (socket && socket.readyState <= 1) return; // already open or connecting
 
   notifyStatus("connecting");
-  socket = new WebSocket(WS_URL);
+  try {
+    socket = new WebSocket(WS_URL);
+  } catch {
+    notifyStatus("disconnected");
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        wsConnect();
+      }, 1000);
+    }
+    return;
+  }
 
   socket.onopen = () => {
     console.log("[ws] connected to bus");
@@ -39,6 +76,7 @@ export function wsConnect(): void {
     }
     // Immediately ask if the extension is alive
     wsSend({ type: "DISCOVER_EXTENSION" } as WSMessage);
+    flushOutbox();
   };
 
   socket.onmessage = (event) => {
@@ -84,7 +122,11 @@ export function wsDisconnect(): void {
 /** Send a message through the bus. */
 export function wsSend(msg: WSMessage): void {
   if (!socket || socket.readyState !== WebSocket.OPEN) {
-    console.warn("[ws] cannot send – not connected");
+    enqueueMessage(msg);
+    if (currentStatus !== "connecting") {
+      wsConnect();
+    }
+    console.warn("[ws] queued message – socket not connected");
     return;
   }
   socket.send(JSON.stringify(msg));

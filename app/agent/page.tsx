@@ -32,6 +32,7 @@ export default function AgentPage() {
     send,
     subscribe,
     refreshRuns: history.refreshRuns,
+    wsStatus,
   });
   const api = useApiRun({ refreshRuns: history.refreshRuns });
 

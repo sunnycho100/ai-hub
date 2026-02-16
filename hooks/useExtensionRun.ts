@@ -20,6 +20,7 @@ interface UseExtensionRunParams {
   send: (msg: WSMessage) => void;
   subscribe: (handler: (msg: WSMessage) => void) => () => void;
   refreshRuns: () => void;
+  wsStatus: "connected" | "disconnected" | "connecting";
 }
 
 /** Max times to retry a SEND_PROMPT before giving up */
@@ -31,7 +32,7 @@ const START_WAIT_TIMEOUT = 45000;
 /** Background errors that are likely transient during startup and should keep retrying */
 const RETRYABLE_ERROR_CODES = new Set(["TAB_NOT_FOUND", "TAB_CLOSED", "SEND_FAILED"]);
 
-export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRunParams) {
+export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseExtensionRunParams) {
   // ─── Model selection ──────────────────────────────────
   const [selectedExtModels, setSelectedExtModels] = useState<Set<Provider>>(
     new Set(PROVIDERS)
@@ -360,8 +361,22 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
     return unsub;
   }, [subscribe, clearRetry, send]);
 
+  // ─── WS lifecycle sync ───────────────────────────────
+  useEffect(() => {
+    if (wsStatus !== "connected") {
+      // Prevent stale "connected provider" UI when WS dropped.
+      setExtensionReady(false);
+      setConnectedProviders([]);
+      return;
+    }
+    // Re-sync extension/provider registry after reconnect.
+    send({ type: "DISCOVER_EXTENSION" } as WSMessage);
+  }, [wsStatus, send]);
+
   // ─── Periodic discovery to keep extension/provider registry fresh ─
   useEffect(() => {
+    if (wsStatus !== "connected") return;
+
     // Continue discovery until extension is ready AND all selected providers are connected.
     const missingSelectedProvider = activeExtProviders.some(
       (p) => !connectedProviders.includes(p)
@@ -375,7 +390,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [activeExtProviders, connectedProviders, extensionReady, send]);
+  }, [activeExtProviders, connectedProviders, extensionReady, send, wsStatus]);
 
   // Auto-start queued run once at least one requested provider is connected.
   useEffect(() => {
@@ -421,6 +436,17 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
     const runTopic = topic.trim();
     if (!runTopic) return;
 
+    if (wsStatus !== "connected") {
+      setProviderErrors({
+        _system: {
+          code: "WS_NOT_CONNECTED",
+          message:
+            "WebSocket bus is disconnected. Make sure start.sh is running and refresh this page.",
+        },
+      });
+      return;
+    }
+
     // Determine which providers to use
     const activeProviders = activeExtProviders.filter((p) =>
       connectedProviders.includes(p)
@@ -458,7 +484,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns }: UseExtensionRu
 
     pendingStartRef.current = null;
     startRun(runTopic, mode, activeProviders);
-  }, [topic, mode, send, connectedProviders, activeExtProviders, extensionReady, startRun]);
+  }, [topic, mode, send, connectedProviders, activeExtProviders, extensionReady, startRun, wsStatus]);
 
   // ─── Stop run ─────────────────────────────────────────
   const handleStop = useCallback(() => {

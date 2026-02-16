@@ -13,6 +13,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.5] - 2026-02-16 - Harden extension-mode WS reliability and start gating
+
+### Fixed
+- **Extension mode silent send failures when UI appeared connected**
+  - Added transport-level hardening so extension-mode prompts are not dropped during short WebSocket disconnect windows.
+  - Improved run-start validation to prevent starting runs when WS transport is not actually connected.
+  - Synced extension/provider readiness state with real WS lifecycle to avoid stale "connected" UI states.
+
+### Changed
+- **`lib/ws.ts`**
+  - Added client-side outbox queue for messages emitted while socket is disconnected.
+  - Added reconnect-on-send behavior when socket is unavailable.
+  - Added queue flush on reconnect (`onopen`) so pending messages are delivered in order.
+  - Added queue cap (`MAX_OUTBOX`) and dedupe behavior for high-frequency `DISCOVER_EXTENSION` messages.
+- **`lib/useWebSocket.ts`**
+  - Stopped disconnecting the singleton WS client during transient React unmount/remount cycles to reduce accidental transport flaps.
+- **`hooks/useExtensionRun.ts`**
+  - Added `wsStatus` dependency to extension run orchestrator.
+  - Reset `extensionReady` and `connectedProviders` when WS is not connected (prevents stale "all green" UI).
+  - Added reconnect resync trigger (`DISCOVER_EXTENSION`) when WS returns.
+  - Added strict start gate: when WS is disconnected, block run start and surface `_system` error `WS_NOT_CONNECTED`.
+- **`app/agent/page.tsx`**
+  - Threaded current WS status into `useExtensionRun` for authoritative start gating and readiness sync.
+
+### Technical Details
+- Root issue was a transport/readiness mismatch:
+  - UI state could remain optimistic while the web app WS client was temporarily disconnected.
+  - `SEND_PROMPT` retries were attempted but never reached the bus when transport was down.
+- New behavior ensures:
+  - no dead-start runs on disconnected transport,
+  - no stale provider-ready display after WS drop,
+  - automatic recovery path via queued send + reconnect flush.
+
+### Important Note
+- Ensure dev server/runtime is launched from the active worktree containing these changes so the updated bundle is served.
+
+---
+
 ## [0.2.4] - 2026-02-16 - Update Chrome extension icons to match AI Hub branding
 
 ### Changed

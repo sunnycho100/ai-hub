@@ -147,3 +147,65 @@ Every `SEND_PROMPT` is now tracked. If no `PROMPT_SENT` acknowledgment arrives w
 ## Key Takeaway
 
 The core issue was that **nothing in the system actively woke the Chrome extension when it was needed**. The extension relied entirely on passive mechanisms (alarms, periodic re-registration) that have minimum 30-second granularity in MV3. The fix ensures the extension is actively woken the moment the user opens the page, and adds multiple fallback layers (discovery handshake, retry, readiness gating) so that even if the wake fails, the system degrades gracefully with clear user feedback instead of silent failure.
+
+---
+
+## Follow-up Hardening (Post-race-condition fix)
+
+After the original startup race fixes (hub wake, discovery handshake, retries), a secondary failure mode remained:
+
+- The UI could show extension/provider readiness while the **web app WS transport** was momentarily disconnected.
+- During this window, `SEND_PROMPT` attempts retried in app logic but did not reach the bus reliably.
+- Result: users observed "everything connected" visually, but no prompt delivery and no fetched responses.
+
+### Additional Root Cause
+
+This was a **state/transport split-brain**:
+- Readiness and provider chips were derived from previously observed events.
+- Actual transport state could be disconnected at the time of send.
+- Start flow lacked a strict transport gate.
+
+### Additional Fixes Applied
+
+#### 1) Transport queue + reconnect flush (`lib/ws.ts`)
+- Added bounded outbox queue for outgoing WS messages while disconnected.
+- On send while disconnected:
+  - queue message,
+  - trigger reconnect (if not already connecting).
+- On `onopen`:
+  - flush queued messages in FIFO order.
+- Added dedupe for repeated `DISCOVER_EXTENSION` to avoid queue noise.
+
+#### 2) Prevent transient client teardown (`lib/useWebSocket.ts`)
+- Removed cleanup-time forced disconnect of singleton WS client on component unmount.
+- Avoids unnecessary transport drops during transient remount patterns.
+
+#### 3) Strict extension start gate (`hooks/useExtensionRun.ts`)
+- Extension run hook now consumes `wsStatus`.
+- If WS is not connected:
+  - block `handleStart()`,
+  - show explicit `_system` error `WS_NOT_CONNECTED`.
+- On WS disconnect:
+  - clear `extensionReady`,
+  - clear `connectedProviders` to prevent stale green UI.
+- On reconnect:
+  - force fresh discovery sync (`DISCOVER_EXTENSION`).
+
+#### 4) Wiring update (`app/agent/page.tsx`)
+- Passed `wsStatus` from page-level WS hook into extension-run hook.
+
+### Why this resolves the observed symptom
+
+The pipeline now enforces transport truth before orchestration:
+- No run start on disconnected WS.
+- No stale-ready provider state after WS drop.
+- Pending control messages are retained and flushed after reconnect, reducing dead-send windows.
+
+### Validation Observations
+
+- Lint checks on modified files reported no new lint errors.
+- Behavior goal: eliminate cases where UI appears connected but extension mode cannot send/fetch.
+
+### Important Note
+
+- Run the app from the worktree that contains these patches so the browser loads the updated bundle.

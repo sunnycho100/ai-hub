@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { wsConnect, wsDisconnect, wsSend, wsOnMessage, wsOnStatus } from "./ws";
+import { wsConnect, wsSend, wsOnMessage, wsOnStatus } from "./ws";
 import type { WSMessage } from "./types";
 
 export type WSStatus = "connected" | "disconnected" | "connecting";
@@ -29,7 +29,8 @@ export function useWebSocket() {
     return () => {
       unsubStatus();
       unsubMessage();
-      wsDisconnect();
+      // Keep the singleton WS alive across transient unmounts (StrictMode/animations).
+      // This avoids dropping in-flight extension messages between remounts.
     };
   }, []);
 
