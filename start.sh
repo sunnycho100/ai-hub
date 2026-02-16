@@ -66,16 +66,32 @@ else
     echo -e "${GREEN}✓ No cache to clear${NC}"
 fi
 
+# Function to find an available port
+find_available_port() {
+    local port=$1
+    local max_attempts=10
+    
+    while [ $max_attempts -gt 0 ]; do
+        if ! lsof -Pi :$port -sTCP:LISTEN -t >/dev/null 2>&1; then
+            echo $port
+            return 0
+        fi
+        port=$((port + 1))
+        max_attempts=$((max_attempts - 1))
+    done
+    
+    echo -e "${RED}✗ Could not find an available port${NC}" >&2
+    exit 1
+}
+
 # Check if ports 3000 and 3333 are available
 echo -e "\n${BLUE}[4/4]${NC} Checking required ports..."
 
-# Check port 3000 (Next.js)
-if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
+# Check port 3000 (Next.js) - find alternative if in use
+NEXT_PORT=$(find_available_port 3000)
+if [ "$NEXT_PORT" != "3000" ]; then
     echo -e "${YELLOW}⚠ Port 3000 is already in use${NC}"
-    echo "Attempting to kill process..."
-    lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-    sleep 1
-    echo -e "${GREEN}✓ Port 3000 is now available${NC}"
+    echo -e "${GREEN}✓ Using alternative port ${NEXT_PORT}${NC}"
 else
     echo -e "${GREEN}✓ Port 3000 is available${NC}"
 fi
@@ -98,7 +114,7 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo -e "\n${BLUE}Starting AI Hub development environment...${NC}"
 echo ""
-echo -e "📍 Web UI:   ${GREEN}http://localhost:3000${NC}"
+echo -e "📍 Web UI:   ${GREEN}http://localhost:${NEXT_PORT}${NC}"
 echo -e "🔌 WS Bus:   ${GREEN}ws://localhost:3333${NC}"
 echo -e "📱 Network:  Check terminal output below"
 echo ""
@@ -108,7 +124,7 @@ echo -e "${BLUE}─────────────────────�
 echo ""
 
 # Open Chrome in the background after a short delay
-(sleep 2 && open -a "Google Chrome" http://localhost:3000) &
+(sleep 2 && open -a "Google Chrome" http://localhost:${NEXT_PORT}) &
 
 # Start both the Next.js app and WebSocket bus
-npm run dev:all
+PORT=${NEXT_PORT} npm run dev:all
