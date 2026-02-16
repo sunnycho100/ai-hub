@@ -616,10 +616,15 @@ function startResponseObserver() {
       return false;
     }
 
-    // Skip extremely short responses that are likely just thinking indicator text
-    // (e.g. "Gemini said" placeholder or thinking summary)
-    if (text.length < 20) {
-      console.log("[" + PROVIDER + "] text too short (" + text.length + " chars), likely placeholder - skipping");
+    // Ignore known placeholder-only text, but allow legitimate short answers.
+    var normalized = text.trim().toLowerCase();
+    var looksPlaceholder =
+      normalized === "gemini said" ||
+      normalized === "thinking" ||
+      normalized === "..." ||
+      normalized === "…";
+    if (looksPlaceholder) {
+      console.log("[" + PROVIDER + "] placeholder text detected, waiting for real response");
       latestMsg._lastTextLen = undefined;
       latestMsg._stableCount = 0;
       return false;

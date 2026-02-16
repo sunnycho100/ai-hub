@@ -61,22 +61,49 @@ function buildTurnPrompt(
 }
 
 async function callGemini(prompt: string, apiKey: string) {
-  const url =
-    "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent";
-  const response = await fetch(`${url}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.7 },
-    }),
-  });
+  // Keep both versions for compatibility across Gemini API rollouts.
+  const endpoints = [
+    "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent",
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+  ];
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error?.message || "Gemini request failed");
+  let lastError = "Gemini request failed";
+
+  for (const endpoint of endpoints) {
+    const response = await fetch(`${endpoint}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7 },
+      }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      lastError = data?.error?.message || `Gemini request failed (${response.status})`;
+      continue;
+    }
+
+    // Gemini may return text split across multiple parts.
+    const parts = data?.candidates?.[0]?.content?.parts;
+    const text = Array.isArray(parts)
+      ? parts
+          .map((p: { text?: string }) => (typeof p?.text === "string" ? p.text : ""))
+          .join("")
+          .trim()
+      : "";
+
+    if (text) return text;
+
+    // Surface a more useful error if Gemini answered without textual parts.
+    const finishReason = data?.candidates?.[0]?.finishReason;
+    lastError = finishReason
+      ? `Gemini returned no text (finishReason: ${finishReason})`
+      : "Gemini returned no text";
   }
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+  throw new Error(lastError);
 }
 
 async function callGrok(prompt: string, apiKey: string) {
