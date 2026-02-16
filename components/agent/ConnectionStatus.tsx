@@ -17,6 +17,24 @@ export function ConnectionStatus({
   return (
     <div className="flex items-center gap-4 text-xs">
       <div className="flex items-center gap-1.5">
+        <span
+          className={`relative flex h-2.5 w-2.5 ${
+            wsStatus === "connected" ? "" : ""
+          }`}
+        >
+          {wsStatus === "connected" && (
+            <span className="absolute inset-0 rounded-full bg-green-400 opacity-40 animate-ping" />
+          )}
+          <span
+            className={`relative inline-flex h-2.5 w-2.5 rounded-full ${
+              wsStatus === "connected"
+                ? "bg-green-500 status-dot-connected text-green-500/40"
+                : wsStatus === "connecting"
+                ? "bg-yellow-500 animate-pulse"
+                : "bg-muted-foreground/30 status-dot-disconnected"
+            }`}
+          />
+        </span>
         {wsStatus === "connected" ? (
           <Wifi className="h-3.5 w-3.5 text-foreground" />
         ) : (

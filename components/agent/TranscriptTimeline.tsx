@@ -36,10 +36,11 @@ export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
           </div>
         ) : (
           <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-            {sorted.map((msg) => (
+            {sorted.map((msg, idx) => (
               <div
                 key={msg.id}
-                className="border-l-2 border-border pl-4 py-1"
+                className="border-l-2 border-border pl-4 py-1 message-enter"
+                style={{ animationDelay: `${idx * 60}ms` }}
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span

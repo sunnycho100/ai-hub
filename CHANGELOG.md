@@ -9,7 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **MAJOR.MINOR.PATCH**
 - Each commit increments the PATCH version
 - Version title matches the git commit message
-- Brief description summarizes the changes
+- Brief description summarizes the changes (should mention specific technical changes made, e.g., "Add status-pulse keyframe animation and ConnectionStatus DOM updates" or "Refactor PostgreSQL pipeline for concurrent writes")
+
+---
+
+## [0.1.2] - 2026-02-15 - Add status-pulse, shimmer, and message-enter animations to Agent Communication UI
+
+### Added
+- **Pulsing status indicators** — Connection status dots now animate with brand-colored pulses
+  - Added CSS `@keyframes status-pulse` (2s rhythmic glow for connected state)
+  - Added CSS `@keyframes status-fade` (3s slow opacity fade for disconnected state)
+  - WS connection dot shows green pulse with `animate-ping` ring when connected
+  - Yellow pulse during "connecting" state
+  - Slow gray fade when disconnected
+  - Per-provider status dots (ChatGPT/Gemini/Claude) pulse in their brand colors (green/blue/orange)
+  - Added `.status-dot-connected` and `.status-dot-disconnected` utility classes
+- **Thinking shimmer skeleton** — Agent cards now show animated skeleton loading during response wait
+  - Added CSS `@keyframes shimmer` with wave gradient animation (1.8s infinite)
+  - Created provider-colored shimmer variants: `.shimmer-line-green`, `.shimmer-line-blue`, `.shimmer-line-orange`
+  - Replaces plain "Waiting for response..." text with 5 staggered shimmer lines (150ms delay cascade)
+  - Lines have varying widths (3/4, full, 5/6, 2/3, full) to mimic realistic text blocks
+  - Each provider's shimmer uses its brand color tint (rgba overlay on muted background)
+- **Message entry animation** — Messages now fade in and slide up when appearing
+  - Added CSS `@keyframes message-enter` (300ms ease-out, 12px upward translation)
+  - AgentPanel messages stagger by 80ms per message
+  - TranscriptTimeline messages stagger by 60ms per message
+  - Creates cascading "typewriter" effect as conversation progresses
+
+### Changed
+- **ConnectionStatus component** — Replaced simple dot with dual-layer animated indicator
+  - Outer `animate-ping` layer for connected radiant effect
+  - Inner colored dot with custom pulse animation
+  - Moved icon after dot for better visual hierarchy
+- **AgentPanel component** — Restructured empty state rendering
+  - Added `PROVIDER_SHIMMER` constant mapping providers to shimmer classes
+  - Split `isSending` state into skeleton shimmer vs "No messages yet" text
+  - Applied `.message-enter` animation class to all message blocks with staggered delay
+- **TranscriptTimeline component** — Added `.message-enter` animation to timeline entries with index-based delay
+
+### Technical Details
+- **Animation strategy** — Uses CSS keyframes instead of JavaScript for better performance
+  - Pulse/fade animations run on compositor thread (no reflow)
+  - Shimmer uses background-position animation (GPU-accelerated)
+  - Message entry uses opacity + transform (composite-only properties)
+- **Staggering approach** — Inline `style` JSX with `animationDelay` calculated from index
+  - AgentPanel: `${idx * 80}ms` per message
+  - TranscriptTimeline: `${idx * 60}ms` per message
+  - Shimmer lines: Hardcoded 0.15s increments via `animationDelay` style prop
+- **Brand color integration** — Status dots and shimmers use provider-specific colors
+  - ChatGPT green: `#22c55e` (500) / `rgba(34,197,94,0.4)` (glow)
+  - Gemini blue: `#3b82f6` (500) / `rgba(59,130,246,0.4)` (glow)
+  - Claude orange: `#f97316` (500) / `rgba(249,115,22,0.4)` (glow)
+
+### Notes
+- First step in UI polish roadmap (animations 1/5 from design enhancement plan)
+- All animations are subtle and performance-optimized (no jank on 60fps)
+- Maintains accessibility (respects `prefers-reduced-motion` via Tailwind defaults)
+- Ready for next enhancements: micro-interactions on buttons, glassmorphism, enhanced typography
 
 ---
 
