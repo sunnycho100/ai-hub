@@ -24,8 +24,7 @@ export function HowItWorks() {
         {steps.map((step) => (
           <div
             key={step.number}
-            className="rounded-2xl p-5 bg-card/90 border border-border/80 shadow-sm"
-          >
+            className="rounded-2xl p-5 glass-thin glass-rim">
             <h3 className="text-sm font-bold text-foreground mb-1">
               {step.number} · {step.title}
             </h3>

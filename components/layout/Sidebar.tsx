@@ -9,11 +9,11 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r border-border/80 bg-sidebar/95 backdrop-blur">
+    <aside className="hidden md:flex w-64 flex-col glass-thick border-r border-border">
       <div className="p-6">
         <Link href="/" className="flex items-center space-x-2">
-          <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shadow-sm">
-            <span className="text-primary-foreground font-bold text-lg">A</span>
+          <div className="h-8 w-8 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <span className="text-primary font-bold text-lg">A</span>
           </div>
           <span className="font-bold text-xl text-foreground">AI Hub</span>
         </Link>
@@ -30,10 +30,10 @@ export function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                  "flex items-center space-x-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    ? "bg-primary/15 text-primary border border-primary/20 shadow-[0_0_12px_rgba(129,140,248,0.15)]"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground active:scale-[0.98]"
                 )}
               >
                 <Icon className="h-5 w-5" />
@@ -44,7 +44,7 @@ export function Sidebar() {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-border/80">
+      <div className="p-4 border-t border-border">
         <div className="text-xs text-muted-foreground">
           <p className="mb-1">AI Hub v1.0.0</p>
           <p>Powered by Next.js</p>

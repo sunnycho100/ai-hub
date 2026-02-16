@@ -558,8 +558,8 @@ export default function AgentPage() {
             </Link>
           </Button>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-secondary border border-border/80 flex items-center justify-center shadow-sm">
-              <MessageSquare className="h-5 w-5 text-foreground" />
+            <div className="h-10 w-10 rounded-xl bg-muted border border-input flex items-center justify-center">
+              <MessageSquare className="h-5 w-5 text-primary" />
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">
@@ -583,7 +583,7 @@ export default function AgentPage() {
               connectedProviders={connectedProviders}
             />
           ) : (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-accent text-accent-foreground font-medium">
+            <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
               API Mode
             </span>
           )}
@@ -618,22 +618,22 @@ export default function AgentPage() {
       </div>
 
       {/* Tab Switcher */}
-      <div className="mb-6 flex items-center gap-2 rounded-xl border border-border/80 bg-card/70 p-1.5 w-fit shadow-sm">
+      <div className="mb-6 flex items-center gap-2 rounded-xl border border-input bg-card p-1.5 w-fit">
         <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
             activeTab === "extension"
-              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-              : "bg-background text-muted-foreground border-input hover:text-foreground"
+              ? "bg-primary/20 text-primary border-primary/20 glass-float"
+              : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
           }`}
           onClick={() => setActiveTab("extension")}
         >
           Agent Communication
         </button>
         <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
             activeTab === "api"
-              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-              : "bg-background text-muted-foreground border-input hover:text-foreground"
+              ? "bg-primary/20 text-primary border-primary/20 glass-float"
+              : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
           }`}
           onClick={() => setActiveTab("api")}
         >
@@ -655,7 +655,7 @@ export default function AgentPage() {
                 {extensionRuns.map((run) => (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-accent cursor-pointer group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted cursor-pointer group"
                     onClick={() => handleLoadRun(run)}
                   >
                     <div className="flex-1 min-w-0">
@@ -672,10 +672,10 @@ export default function AgentPage() {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
                           run.status === "DONE"
-                            ? "bg-muted text-foreground"
+                            ? "bg-emerald-400/10 text-emerald-400"
                             : run.status === "ERROR"
-                            ? "bg-muted text-foreground"
-                            : "bg-muted text-foreground"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {run.status}
@@ -711,7 +711,7 @@ export default function AgentPage() {
                 {apiRuns.map((run) => (
                   <div
                     key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-accent cursor-pointer group"
+                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted cursor-pointer group"
                     onClick={() => handleApiLoadRun(run)}
                   >
                     <div className="flex-1 min-w-0">
@@ -727,10 +727,10 @@ export default function AgentPage() {
                       <span
                         className={`text-xs px-2 py-0.5 rounded-full ${
                           run.status === "DONE"
-                            ? "bg-muted text-foreground"
+                            ? "bg-emerald-400/10 text-emerald-400"
                             : run.status === "ERROR"
-                            ? "bg-muted text-foreground"
-                            : "bg-muted text-foreground"
+                            ? "bg-destructive/10 text-destructive"
+                            : "bg-muted text-muted-foreground"
                         }`}
                       >
                         {run.status}
@@ -792,8 +792,8 @@ export default function AgentPage() {
                           disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
                           className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-200 ${
                             selected
-                              ? "bg-primary/10 border-primary/30 text-foreground shadow-sm"
-                              : "bg-background border-input text-muted-foreground hover:text-foreground hover:border-border"
+                              ? "bg-primary/10 border-primary/30 text-foreground glass-float"
+                              : "bg-card border-input text-muted-foreground hover:text-foreground hover:bg-muted"
                           } disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                           <ProviderIcon provider={model} className="h-4 w-4" />
@@ -838,7 +838,7 @@ export default function AgentPage() {
               <select
                 value={extMaxRounds}
                 onChange={(e) => setExtMaxRounds(parseInt(e.target.value))}
-                className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                className="rounded-lg border border-input bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
               >
                 <option value={1}>1</option>
@@ -864,7 +864,7 @@ export default function AgentPage() {
 
           {/* Error Banner */}
           {Object.keys(providerErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4">
+            <div className="mb-4 rounded-2xl border border-input bg-card p-4">
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 Pipeline Errors
               </h3>
@@ -915,7 +915,7 @@ export default function AgentPage() {
 
       {activeTab === "api" && (
         <>
-          <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4 text-xs text-muted-foreground">
+          <div className="mb-4 rounded-2xl border border-input bg-card p-4 text-xs text-muted-foreground">
             API mode runs fully in-process using your API keys. Responses are
             generated in turn across 3 rounds.
           </div>
@@ -936,7 +936,7 @@ export default function AgentPage() {
                     <select
                       value={selectedModel1}
                       onChange={(e) => setSelectedModel1(e.target.value as ExtendedProvider)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                       disabled={apiStatus !== "IDLE"}
                     >
                       {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
@@ -960,7 +960,7 @@ export default function AgentPage() {
                     <select
                       value={selectedModel2}
                       onChange={(e) => setSelectedModel2(e.target.value as ExtendedProvider)}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                       disabled={apiStatus !== "IDLE"}
                     >
                       {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
@@ -984,7 +984,7 @@ export default function AgentPage() {
                     <select
                       value={maxRounds}
                       onChange={(e) => setMaxRounds(parseInt(e.target.value))}
-                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                       disabled={apiStatus !== "IDLE"}
                     >
                       <option value={1}>1 Round</option>
@@ -1016,7 +1016,7 @@ export default function AgentPage() {
 
           {/* Error Banner */}
           {Object.keys(apiProviderErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-border bg-muted/50 p-4">
+            <div className="mb-4 rounded-2xl border border-input bg-card p-4">
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 API Errors
               </h3>

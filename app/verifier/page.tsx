@@ -14,8 +14,8 @@ export default function VerifierPage() {
       </Button>
 
       <div className="mb-8 flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl border border-border/80 bg-card/80 flex items-center justify-center shadow-sm">
-          <Shield className="h-5 w-5 text-foreground" />
+        <div className="h-10 w-10 rounded-xl border border-input bg-muted flex items-center justify-center">
+          <Shield className="h-5 w-5 text-primary" />
         </div>
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-1">AI Verifier</h1>

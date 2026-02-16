@@ -67,8 +67,8 @@ export function ConnectionStatus({
                 key={p}
                 className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
                   connected
-                    ? "bg-accent text-accent-foreground font-medium"
-                    : "bg-muted text-muted-foreground/50"
+                ? "bg-accent text-foreground font-medium border border-input"
+                    : "bg-card text-muted-foreground/50"
                 }`}
               >
                 {PROVIDER_LABELS[p]}

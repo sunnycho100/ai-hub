@@ -30,15 +30,15 @@ const STATUS_LABELS: Record<RunStatus, string> = {
 };
 
 const STATUS_COLORS: Record<RunStatus, string> = {
-  IDLE: "bg-secondary text-secondary-foreground",
-  R1_SENDING: "bg-primary/5 text-primary animate-pulse",
-  R1_WAITING: "bg-primary/5 text-primary",
-  R2_SENDING: "bg-primary/5 text-primary animate-pulse",
-  R2_WAITING: "bg-primary/5 text-primary",
-  R3_SENDING: "bg-primary/5 text-primary animate-pulse",
-  R3_WAITING: "bg-primary/5 text-primary",
-  DONE: "bg-muted text-foreground",
-  ERROR: "bg-muted text-foreground border border-border",
+  IDLE: "bg-muted text-muted-foreground",
+  R1_SENDING: "bg-primary/10 text-primary animate-pulse",
+  R1_WAITING: "bg-primary/10 text-primary",
+  R2_SENDING: "bg-primary/10 text-primary animate-pulse",
+  R2_WAITING: "bg-primary/10 text-primary",
+  R3_SENDING: "bg-primary/10 text-primary animate-pulse",
+  R3_WAITING: "bg-primary/10 text-primary",
+  DONE: "bg-emerald-400/10 text-emerald-400",
+  ERROR: "bg-destructive/10 text-destructive border border-destructive/20",
 };
 
 function getCurrentRound(status: RunStatus): Round | null {
@@ -79,21 +79,21 @@ export function RunControls({
           placeholder="Enter a topic or question for the AI agents to discuss..."
           disabled={isRunning}
           rows={2}
-          className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed resize-none transition-shadow duration-200"
+          className="w-full rounded-xl border border-input bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed resize-none transition-shadow duration-200"
         />
       </div>
 
       {/* Mode & Controls Row */}
       <div className="flex items-center gap-3 flex-wrap">
         {/* Mode Toggle */}
-        <div className="flex items-center rounded-xl border border-input p-0.5 bg-muted/50">
+        <div className="flex items-center rounded-xl border border-input p-0.5 bg-card">
           <button
             onClick={() => onModeChange("debate")}
             disabled={isRunning}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
               mode === "debate"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                ? "bg-primary/20 text-primary shadow-sm glass-float"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             } disabled:opacity-50`}
           >
             Debate
@@ -101,10 +101,10 @@ export function RunControls({
           <button
             onClick={() => onModeChange("collaboration")}
             disabled={isRunning}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all duration-200 ${
               mode === "collaboration"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                ? "bg-primary/20 text-primary shadow-sm glass-float"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted"
             } disabled:opacity-50`}
           >
             Collaborate
@@ -118,10 +118,10 @@ export function RunControls({
               key={r}
               className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 border ${
                 round === r
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm scale-110"
+                  ? "bg-primary/20 text-primary border-primary/30 shadow-[0_0_10px_rgba(129,140,248,0.2)] scale-110"
                   : status === "DONE" || (round && r < round)
-                  ? "bg-muted text-muted-foreground border-transparent"
-                  : "bg-transparent text-muted-foreground/30 border-input"
+                  ? "bg-muted text-muted-foreground border-input"
+                  : "bg-transparent text-muted-foreground/30 border-border"
               }`}
             >
               {r}

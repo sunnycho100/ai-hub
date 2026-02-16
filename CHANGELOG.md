@@ -13,6 +13,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-02-15 - Add light/dark mode theme system with toggle and complete glassmorphism palette overhaul
+
+### Added
+- **Theme toggle system** — Users can now switch between light and dark modes
+  - Created `ThemeProvider` context in `lib/theme.tsx` with `useTheme()` hook
+  - Theme preference persists in localStorage (`ai-hub-theme`)
+  - `.dark` class applied to `<html>` element for theme switching
+  - No flash of unstyled content — inline script in `<head>` reads localStorage before paint
+  - Toggle button (Sun/Moon icon) in Topbar (top-right corner)
+  - Floating glass toggle button on landing page
+- **Light mode glassmorphism palette** — Complete design system for bright environments
+  - Background: soft blue-gray (`#f0f2f8`) with pastel mesh gradients
+  - Glass surfaces: white frosted-glass (`rgba(255,255,255,0.55)` thick / `0.4` thin)
+  - Borders: subtle dark (`rgba(0,0,0,0.08)`)
+  - Primary: vibrant indigo (`#6366f1`)
+  - Text: dark foreground (`#1a1d2e`) with gray muted text (`#64748b`)
+  - Shadows: light (`rgba(0,0,0,0.06)`)
+- **Dark mode glassmorphism palette** — Original dark theme preserved and enhanced
+  - Background: deep navy (`#0a0e1a`) with vivid mesh gradients
+  - Glass surfaces: white frosted-glass (`rgba(255,255,255,0.06)` thick / `0.04` thin)
+  - Borders: bright translucent (`rgba(255,255,255,0.1)`)
+  - Primary: lighter indigo (`#818cf8`)
+  - Text: light foreground (`#f0f2f8`) with gray muted text (`#8890a8`)
+  - Shadows: dark (`rgba(0,0,0,0.25)`)
+
+### Changed
+- **globals.css theme architecture** — Refactored from dark-only to dual-mode system
+  - `@theme` block defines light mode colors as default
+  - `.dark {}` selector overrides all color and glass tokens for dark mode
+  - `.mesh-gradient` background uses `.dark .mesh-gradient` override for darker gradients
+  - Shimmer animations use `.dark .shimmer-line` overrides for inverted colors
+  - Scrollbar styles use `.dark ::-webkit-scrollbar-thumb` for light/dark variants
+  - `.glass-interactive:hover` brightness adjusted per theme (1.04 light / 1.15 dark)
+- **Component class replacements** — All hardcoded `white/[0.xx]` replaced with semantic theme classes (17 files)
+  - Backgrounds: `bg-white/[0.04]` → `bg-card`, `bg-white/[0.06]` → `bg-muted`
+  - Borders: `border-white/[0.1]` → `border-input`, `border-white/[0.06]` → `border-border`
+  - Hovers: `hover:bg-white/[0.06]` → `hover:bg-muted`, `hover:bg-white/[0.08]` → `hover:bg-accent`
+  - All classes now reference CSS custom properties that switch based on `.dark` class
+- **layout.tsx** — Added `suppressHydrationWarning` to `<html>` and inline theme-loading script
+- **providers.tsx** — Wrapped children with `<ThemeProvider>`
+- **Topbar.tsx** — Added theme toggle button with `useTheme()` hook
+- **AppShell.tsx** — Added floating theme toggle for landing page (no Topbar present)
+
+### Technical Details
+- **Theme system architecture** — CSS-first approach with React context for toggle state
+  - CSS custom properties (`--color-background`, `--glass-thick-bg`, etc.) defined in `@theme`
+  - `.dark` class overrides all custom properties for dark mode
+  - Theme switcher only manages class on `<html>` — no inline styles or prop drilling
+  - localStorage persistence prevents flash between page loads
+- **No FOUC (Flash of Unstyled Content)** — Inline blocking script runs before first paint
+  - Script reads `localStorage.getItem('ai-hub-theme')` synchronously
+  - Adds/removes `.dark` class before React hydration
+  - `suppressHydrationWarning` on `<html>` prevents mismatch warnings
+- **Semantic color tokens** — All components use Tailwind theme classes instead of opacity helpers
+  - `bg-card`, `bg-muted`, `bg-accent` automatically resolve to correct theme values
+  - `border-input`, `border-border` switch between dark/light borders
+  - `text-foreground`, `text-muted-foreground` adapt to theme
+  - Ensures full theme coverage — no hardcoded colors left
+- **Glass token system** — 7 glass-specific CSS variables switch per theme
+  - `--glass-thick-bg`, `--glass-thin-bg`, `--glass-border`
+  - `--glass-rim-top`, `--glass-rim-bottom`, `--glass-inner-glow`, `--glass-shadow`
+  - Light mode uses white glass on light bg, dark mode uses white glass on dark bg
+  - Maintains consistent glassmorphism aesthetic across both modes
+
+### Files Modified
+- Core: `lib/theme.tsx` (new), `lib/providers.tsx`, `app/layout.tsx`, `styles/globals.css`
+- Layout: `components/layout/AppShell.tsx`, `components/layout/Topbar.tsx`, `components/layout/Sidebar.tsx`
+- UI primitives: `components/ui/button.tsx`, `components/ui/card.tsx`
+- Agent components: `components/agent/AgentPanel.tsx`, `components/agent/RunControls.tsx`, `components/agent/ConnectionStatus.tsx`, `components/agent/TranscriptTimeline.tsx`
+- Landing: `components/landing/Hero.tsx`, `components/landing/ToolCards.tsx`, `components/landing/Footer.tsx`
+- Pages: `app/agent/page.tsx`, `app/verifier/page.tsx`, `app/writer/page.tsx`
+
+### Notes
+- Both light and dark modes maintain the Liquid Glass aesthetic with consistent blur, saturation, and frosted-glass effects
+- Theme toggle icon animates on click (active:scale-[0.95])
+- All existing glassmorphism features (glass-thick, glass-thin, glass-rim, glass-float, glass-interactive) work identically in both modes
+- Accessibility: system respects `prefers-reduced-motion` via Tailwind defaults
+- Future: could add system theme detection with `prefers-color-scheme` media query
+
+---
+
 ## [0.1.2] - 2026-02-15 - Add status-pulse, shimmer, and message-enter animations to Agent Communication UI
 
 ### Added

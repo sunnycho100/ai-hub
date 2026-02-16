@@ -15,15 +15,27 @@ interface AgentPanelProps {
 }
 
 const PROVIDER_ACCENT: Record<Provider, string> = {
-  chatgpt: "text-emerald-600",
-  gemini: "text-violet-600",
-  grok: "text-sky-600",
+  chatgpt: "text-emerald-400",
+  gemini: "text-violet-400",
+  grok: "text-sky-400",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
-  chatgpt: "bg-emerald-500",
-  gemini: "bg-violet-500",
-  grok: "bg-sky-500",
+  chatgpt: "bg-emerald-400",
+  gemini: "bg-violet-400",
+  grok: "bg-sky-400",
+};
+
+const PROVIDER_GLOW: Record<Provider, string> = {
+  chatgpt: "shadow-[0_0_12px_rgba(16,185,129,0.2)]",
+  gemini: "shadow-[0_0_12px_rgba(139,92,246,0.2)]",
+  grok: "shadow-[0_0_12px_rgba(56,189,248,0.2)]",
+};
+
+const PROVIDER_BORDER: Record<Provider, string> = {
+  chatgpt: "border-emerald-400/20",
+  gemini: "border-violet-400/20",
+  grok: "border-sky-400/20",
 };
 
 const PROVIDER_SHIMMER: Record<Provider, string> = {
@@ -45,8 +57,10 @@ export function AgentPanel({
   );
 
   return (
-    <Card className="bg-card/90">
-      <CardHeader className="pb-3 border-b border-border/70">
+    <Card className={`glass-interactive ${
+      isConnected ? `${PROVIDER_BORDER[provider]} ${PROVIDER_GLOW[provider]}` : ""
+    }`}>
+      <CardHeader className="pb-3 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ProviderIcon provider={provider} className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />

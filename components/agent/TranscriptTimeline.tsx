@@ -10,17 +10,17 @@ interface TranscriptTimelineProps {
 }
 
 const PROVIDER_BADGE: Record<Provider, string> = {
-  chatgpt: "bg-emerald-50 text-emerald-700",
-  gemini: "bg-violet-50 text-violet-700",
-  grok: "bg-sky-50 text-sky-700",
+  chatgpt: "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20",
+  gemini: "bg-violet-400/10 text-violet-400 border border-violet-400/20",
+  grok: "bg-sky-400/10 text-sky-400 border border-sky-400/20",
 };
 
 export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
   const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
   return (
-    <Card className="bg-card/90">
-      <CardHeader className="pb-3 border-b border-border/70">
+    <Card>
+      <CardHeader className="pb-3 border-b border-border">
         <div className="flex items-center gap-2">
           <ScrollText className="h-4 w-4 text-muted-foreground" />
           <CardTitle className="text-base font-semibold text-foreground">Transcript Timeline</CardTitle>
@@ -39,7 +39,7 @@ export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {
             {sorted.map((msg, idx) => (
               <div
                 key={msg.id}
-                className="border-l-2 border-border pl-4 py-1 message-enter"
+                className="border-l-2 border-input pl-4 py-1 message-enter"
                 style={{ animationDelay: `${idx * 60}ms` }}
               >
                 <div className="flex items-center gap-2 mb-1.5">
