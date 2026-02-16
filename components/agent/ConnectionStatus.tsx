@@ -36,7 +36,7 @@ export function ConnectionStatus({
           />
         </span>
         {wsStatus === "connected" ? (
-          <Wifi className="h-3.5 w-3.5 text-foreground" />
+          <Wifi className="h-3.5 w-3.5 text-emerald-600" />
         ) : (
           <WifiOff className="h-3.5 w-3.5 text-muted-foreground/50" />
         )}
@@ -67,7 +67,7 @@ export function ConnectionStatus({
                 key={p}
                 className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
                   connected
-                    ? "bg-muted text-foreground font-medium"
+                    ? "bg-accent text-accent-foreground font-medium"
                     : "bg-muted text-muted-foreground/50"
                 }`}
               >

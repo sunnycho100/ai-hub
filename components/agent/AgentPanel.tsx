@@ -15,15 +15,15 @@ interface AgentPanelProps {
 }
 
 const PROVIDER_ACCENT: Record<Provider, string> = {
-  chatgpt: "text-green-500",
-  gemini: "text-blue-500",
-  claude: "text-orange-500",
+  chatgpt: "text-emerald-600",
+  gemini: "text-violet-600",
+  grok: "text-sky-600",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
-  chatgpt: "bg-green-500",
-  gemini: "bg-blue-500",
-  claude: "bg-orange-500",
+  chatgpt: "bg-emerald-500",
+  gemini: "bg-violet-500",
+  grok: "bg-sky-500",
 };
 
 const PROVIDER_SHIMMER: Record<Provider, string> = {
@@ -45,8 +45,8 @@ export function AgentPanel({
   );
 
   return (
-    <Card>
-      <CardHeader className="pb-3 border-b border-border/50">
+    <Card className="bg-card/90">
+      <CardHeader className="pb-3 border-b border-border/70">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <ProviderIcon provider={provider} className={`h-4 w-4 ${PROVIDER_ACCENT[provider]}`} />
@@ -123,7 +123,7 @@ export function AgentPanel({
               >
                 <div className="flex items-center gap-2 mb-1.5">
                   <span
-                    className={`text-xs font-medium px-1.5 py-0.5 rounded-md bg-muted/50 ${PROVIDER_ACCENT[provider]}`}
+                    className={`text-xs font-medium px-1.5 py-0.5 rounded-md bg-muted ${PROVIDER_ACCENT[provider]}`}
                   >
                     Round {msg.round}
                   </span>

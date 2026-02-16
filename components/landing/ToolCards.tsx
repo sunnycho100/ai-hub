@@ -35,10 +35,10 @@ export function ToolCards() {
             <Link
               key={tool.title}
               href={tool.href}
-              className="rounded-lg border border-border bg-card p-5 hover:bg-accent transition-colors group"
+              className="rounded-2xl border border-border/80 bg-card/90 p-5 hover:-translate-y-0.5 hover:bg-accent/60 shadow-sm transition-all group"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-secondary border border-border/70 flex items-center justify-center">
                   <Icon className="h-5 w-5 text-foreground" />
                 </div>
                 <h3 className="text-base font-bold text-card-foreground">{tool.title}</h3>
