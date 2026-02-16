@@ -1,906 +1,139 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import Link from "next/link";
-import { ArrowLeft, MessageSquare, History, Trash2, SlidersHorizontal, Check, ExternalLink } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import React, { useState } from "react";
+import { useWebSocket } from "@/lib/useWebSocket";
+import { Run, RunSource, Round } from "@/lib/types";
 
+// Hooks
+import { useRunHistory } from "@/hooks/useRunHistory";
+import { useExtensionRun } from "@/hooks/useExtensionRun";
+import { useApiRun } from "@/hooks/useApiRun";
+
+// Components
+import { AgentPageHeader } from "@/components/agent/AgentPageHeader";
+import { ModeTabs } from "@/components/agent/ModeTabs";
+import { RunHistoryPanel } from "@/components/agent/RunHistoryPanel";
+import { ExtensionModelPicker } from "@/components/agent/ExtensionModelPicker";
+import { ApiModelSelector } from "@/components/agent/ApiModelSelector";
+import { ErrorBanner } from "@/components/agent/ErrorBanner";
+import { RunControls } from "@/components/agent/RunControls";
 import { AgentPanel } from "@/components/agent/AgentPanel";
 import { TranscriptTimeline } from "@/components/agent/TranscriptTimeline";
-import { RunControls } from "@/components/agent/RunControls";
-import { ConnectionStatus } from "@/components/agent/ConnectionStatus";
-import { ProviderIcon } from "@/components/agent/ProviderIcon";
-import { useWebSocket } from "@/lib/useWebSocket";
-import {
-  Provider,
-  PROVIDERS,
-  RunMode,
-  RunStatus,
-  Round,
-  Run,
-  PROVIDER_LABELS,
-  WSMessage,
-  RunSource,
-  ExtendedProvider,
-  EXTENDED_PROVIDER_LABELS,
-  MODEL_STATUS,
-} from "@/lib/types";
-import {
-  createRun,
-  addMessageToRun,
-  updateRunStatus,
-  loadRuns,
-  deleteRun,
-} from "@/lib/store";
-import { buildR1Prompt, buildR2Prompt, buildR3Prompt } from "@/lib/prompts";
-
-// ─── Mock Responses (for testing without the extension) ─────
-function generateMockResponse(
-  provider: Provider,
-  round: Round,
-  topic: string,
-  mode: RunMode
-): string {
-  const label = PROVIDER_LABELS[provider];
-
-  if (round === 1) {
-    return `[${label} – Round 1]\n\nRegarding "${topic}":\n\nThis is a simulated ${mode === "debate" ? "independent analysis" : "collaborative response"} from ${label}. In a real run, this response would come directly from the ${label} AI model via the Chrome extension.\n\nKey points:\n• First observation about the topic\n• Supporting reasoning and evidence\n• Initial conclusion`;
-  }
-  if (round === 2) {
-    return `[${label} – Round 2]\n\nAfter reviewing the other participants' responses:\n\nThis is a simulated ${mode === "debate" ? "critique and refinement" : "synthesis"} from ${label}. The actual response would incorporate real feedback from other AI models.\n\nRefined position:\n• Acknowledging strong points from others\n• Areas of disagreement or improvement\n• Updated analysis`;
-  }
-  return `[${label} – Round 3]\n\nFinal ${mode === "debate" ? "position" : "consolidated answer"}:\n\nThis is the simulated final response from ${label}. In production, this would be a genuine reconciliation of all previous rounds.\n\nConclusion:\n• Final synthesized answer\n• Remaining open questions\n• Recommended next steps`;
-}
 
 // ─── Main Agent Page ────────────────────────────────────────
 export default function AgentPage() {
   const { status: wsStatus, send, subscribe } = useWebSocket();
-
   const [activeTab, setActiveTab] = useState<"extension" | "api">("extension");
 
-  // API model selection - default: ChatGPT and Gemini
-  const [selectedModel1, setSelectedModel1] = useState<ExtendedProvider>("chatgpt");
-  const [selectedModel2, setSelectedModel2] = useState<ExtendedProvider>("gemini");
-  const [maxRounds, setMaxRounds] = useState<number>(3);
-  
-  // Extension mode rounds
-  const [extMaxRounds, setExtMaxRounds] = useState<number>(2);
-  
-  // Derive API providers from selected models (only include available ones)
-  const apiProviders: Provider[] = [selectedModel1, selectedModel2].filter(
-    (model): model is Provider => 
-      MODEL_STATUS[model] === "available" && 
-      (model === "chatgpt" || model === "gemini")
-  );
+  // Hooks
+  const history = useRunHistory();
+  const ext = useExtensionRun({
+    send,
+    subscribe,
+    refreshRuns: history.refreshRuns,
+  });
+  const api = useApiRun({ refreshRuns: history.refreshRuns });
 
-  // Extension model selection - which models to include in extension runs
-  const [selectedExtModels, setSelectedExtModels] = useState<Set<Provider>>(new Set(PROVIDERS));
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  // ─── Coordinated handlers ─────────────────────────────
+  const handleDeleteRun = (runId: string, source: RunSource) => {
+    history.removeRun(runId);
+    if (source === "extension") ext.clearCurrentIfId(runId);
+    if (source === "api") api.clearCurrentIfId(runId);
+  };
 
-  const toggleExtModel = useCallback((model: Provider) => {
-    setSelectedExtModels(prev => {
-      const next = new Set(prev);
-      if (next.has(model)) {
-        if (next.size > 1) next.delete(model); // keep at least 1
-      } else {
-        next.add(model);
-      }
-      return next;
-    });
-  }, []);
+  const handleExtLoadRun = (run: Run) => {
+    ext.loadRun(run);
+    history.setShowHistory(false);
+  };
 
-  // Effective extension providers = selected AND connected
-  const activeExtProviders: Provider[] = PROVIDERS.filter(p => selectedExtModels.has(p));
+  const handleApiLoadRun = (run: Run) => {
+    api.loadRun(run);
+    history.setShowApiHistory(false);
+  };
 
-  // Run state
-  const [topic, setTopic] = useState("");
-  const [mode, setMode] = useState<RunMode>("debate");
-  const [currentRun, setCurrentRun] = useState<Run | null>(null);
-  const [extensionRuns, setExtensionRuns] = useState<Run[]>([]);
-  const [connectedProviders, setConnectedProviders] = useState<Provider[]>([]);
-  const [sendingProviders, setSendingProviders] = useState<Provider[]>([]);
-  const [providerErrors, setProviderErrors] = useState<Record<string, { code: string; message: string }>>({});
-  const [showHistory, setShowHistory] = useState(false);
-
-  // API run state
-  const [apiTopic, setApiTopic] = useState("");
-  const [apiMode, setApiMode] = useState<RunMode>("debate");
-  const [apiCurrentRun, setApiCurrentRun] = useState<Run | null>(null);
-  const [apiRuns, setApiRuns] = useState<Run[]>([]);
-  const [apiSendingProviders, setApiSendingProviders] = useState<Provider[]>([]);
-  const [apiProviderErrors, setApiProviderErrors] = useState<
-    Record<string, { code: string; message: string }>
-  >({});
-  const [showApiHistory, setShowApiHistory] = useState(false);
-
-  // Ref to current run for use in callbacks
-  const runRef = useRef(currentRun);
-  runRef.current = currentRun;
-
-  const apiRunRef = useRef(apiCurrentRun);
-  apiRunRef.current = apiCurrentRun;
-
-  const apiCancelledRef = useRef(false);
-  const apiAbortRef = useRef<AbortController | null>(null);
-
-  // Track which providers are active for the current extension run
-  const runProvidersRef = useRef<Provider[]>([...PROVIDERS]);
-
-  const refreshRuns = useCallback(() => {
-    const all = loadRuns();
-    setExtensionRuns(
-      all.filter((r) => (r.source ?? "extension") === "extension")
-    );
-    setApiRuns(all.filter((r) => r.source === "api"));
-  }, []);
-
-  // Load past runs on mount
-  useEffect(() => {
-    refreshRuns();
-  }, [refreshRuns]);
-
-  // Listen for WS messages from the extension
-  useEffect(() => {
-    const unsub = subscribe((msg: WSMessage) => {
-      switch (msg.type) {
-        case "HELLO_PROVIDER":
-          setConnectedProviders((prev) =>
-            prev.includes(msg.provider) ? prev : [...prev, msg.provider]
-          );
-          break;
-
-        case "PROMPT_SENT":
-          setSendingProviders((prev) =>
-            prev.filter((p) => p !== msg.provider)
-          );
-          break;
-
-        case "NEW_MESSAGE": {
-          if (!runRef.current || msg.runId !== runRef.current.id) break;
-          const updated = addMessageToRun(msg.runId, {
-            runId: msg.runId,
-            provider: msg.provider,
-            round: msg.round,
-            role: msg.role,
-            text: msg.text,
-            timestamp: msg.timestamp,
-          });
-          if (updated) {
-            setCurrentRun({ ...updated });
-            checkRoundCompletion(updated, msg.round);
-          }
-          break;
-        }
-
-        case "ERROR":
-          console.error(
-            `[agent] Error from ${msg.provider}: ${msg.code} – ${msg.message}`
-          );
-          // Show error visually
-          setProviderErrors((prev) => ({
-            ...prev,
-            [msg.provider]: { code: msg.code, message: msg.message },
-          }));
-          // Clear the sending state for this provider
-          setSendingProviders((prev) => prev.filter((p) => p !== msg.provider));
-          break;
-
-        case "PING_ACK":
-          break;
-      }
-    });
-    return unsub;
-  }, [subscribe]);
-
-  // ─── Round completion logic ─────────────────────────────
-  const checkRoundCompletion = useCallback(
-    (run: Run, round: Round) => {
-      const roundMessages = run.messages.filter(
-        (m) => m.round === round && m.role === "assistant"
-      );
-      const respondedProviders = new Set(roundMessages.map((m) => m.provider));
-      const expectedCount = runProvidersRef.current.length;
-
-      if (respondedProviders.size >= expectedCount) {
-        if (round < extMaxRounds && round < 3) {
-          advanceToRound(run, (round + 1) as Round);
-        } else {
-          const doneRun = updateRunStatus(run.id, "DONE");
-          if (doneRun) {
-            setCurrentRun({ ...doneRun });
-            refreshRuns();
-          }
-        }
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [extMaxRounds]
-  );
-
-  const advanceToRound = useCallback(
-    (run: Run, nextRound: Round) => {
-      const activeProviders = runProvidersRef.current;
-      const sendingStatus: RunStatus = `R${nextRound}_SENDING` as RunStatus;
-      const waitingStatus: RunStatus = `R${nextRound}_WAITING` as RunStatus;
-
-      updateRunStatus(run.id, sendingStatus);
-      setCurrentRun((prev) =>
-        prev ? { ...prev, status: sendingStatus } : prev
-      );
-
-      setSendingProviders([...activeProviders]);
-
-      for (const provider of activeProviders) {
-        const promptText =
-          nextRound === 2
-            ? buildR2Prompt(run.topic, run.mode, provider, run.messages)
-            : buildR3Prompt(run.topic, run.mode, provider, run.messages);
-
-        send({
-          type: "SEND_PROMPT",
-          runId: run.id,
-          provider,
-          round: nextRound,
-          text: promptText,
-        });
-      }
-
-      setTimeout(() => {
-        updateRunStatus(run.id, waitingStatus);
-        setCurrentRun((prev) =>
-          prev ? { ...prev, status: waitingStatus } : prev
-        );
-      }, 500);
-    },
-    [send]
-  );
-
-  // ─── Start a real run (via extension) ─────────────────
-  const handleStart = useCallback(() => {
-    if (!topic.trim()) return;
-
-    // Only send to selected models that also have connected tabs
-    const activeProviders = activeExtProviders.filter(p => connectedProviders.includes(p));
-    if (activeProviders.length === 0) {
-      // Fallback: try all selected models even if not confirmed connected
-      runProvidersRef.current = [...activeExtProviders];
-    } else {
-      runProvidersRef.current = activeProviders;
-    }
-
-    const run = createRun(topic, mode);
-    updateRunStatus(run.id, "R1_SENDING");
-    run.status = "R1_SENDING";
-    setCurrentRun(run);
-    setSendingProviders([...runProvidersRef.current]);
-    setProviderErrors({}); // Clear previous errors
-
-    for (const provider of runProvidersRef.current) {
-      const promptText = buildR1Prompt(topic, mode);
-      send({
-        type: "SEND_PROMPT",
-        runId: run.id,
-        provider,
-        round: 1,
-        text: promptText,
-      });
-    }
-
-    setTimeout(() => {
-      updateRunStatus(run.id, "R1_WAITING");
-      setCurrentRun((prev) =>
-        prev ? { ...prev, status: "R1_WAITING" } : prev
-      );
-    }, 500);
-  }, [topic, mode, send, connectedProviders, activeExtProviders]);
-
-  // ─── Stop the current run ─────────────────────────────
-  const handleStop = useCallback(() => {
-    if (!currentRun) return;
-    const stopped = updateRunStatus(currentRun.id, "ERROR");
-    if (stopped) {
-      setCurrentRun({ ...stopped });
-      refreshRuns();
-    }
-    setSendingProviders([]);
-  }, [currentRun, refreshRuns]);
-
-  // ─── Mock run (simulates all 3 rounds locally) ────────
-  const handleMockRun = useCallback(() => {
-    if (!topic.trim()) return;
-
-    const mockProviders = [...activeExtProviders];
-    const run = createRun(topic, mode);
-    const rounds: Round[] = [1, 2, 3];
-    let delay = 0;
-
-    for (const round of rounds) {
-      const sendingStatus: RunStatus = `R${round}_SENDING` as RunStatus;
-      const waitingStatus: RunStatus = `R${round}_WAITING` as RunStatus;
-
-      delay += 300;
-      setTimeout(() => {
-        const r = updateRunStatus(run.id, sendingStatus);
-        if (r) setCurrentRun({ ...r });
-        setSendingProviders([...mockProviders]);
-      }, delay);
-
-      delay += 500;
-      const capturedRound = round;
-      setTimeout(() => {
-        const r = updateRunStatus(run.id, waitingStatus);
-        if (r) setCurrentRun({ ...r });
-
-        mockProviders.forEach((provider, i) => {
-          setTimeout(() => {
-            const mockText = generateMockResponse(
-              provider,
-              capturedRound,
-              topic,
-              mode
-            );
-            const updated = addMessageToRun(run.id, {
-              runId: run.id,
-              provider,
-              round: capturedRound,
-              role: "assistant",
-              text: mockText,
-              timestamp: Date.now(),
-            });
-            if (updated) {
-              setCurrentRun({ ...updated });
-            }
-            setSendingProviders((prev) =>
-              prev.filter((p) => p !== provider)
-            );
-
-            if (capturedRound === 3 && i === mockProviders.length - 1) {
-              setTimeout(() => {
-                const done = updateRunStatus(run.id, "DONE");
-                if (done) {
-                  setCurrentRun({ ...done });
-                  refreshRuns();
-                }
-              }, 200);
-            }
-          }, i * 400);
-        });
-      }, delay);
-
-      delay += 1500;
-    }
-  }, [topic, mode, refreshRuns]);
-
-  // ─── Load a past run ──────────────────────────────────
-  const handleLoadRun = useCallback((run: Run) => {
-    setCurrentRun(run);
-    setTopic(run.topic);
-    setMode(run.mode);
-    setShowHistory(false);
-  }, []);
-
-  // ─── Delete a past run ────────────────────────────────
-  const handleDeleteRun = useCallback(
-    (runId: string, source: RunSource) => {
-      deleteRun(runId);
-      refreshRuns();
-      if (source === "extension" && currentRun?.id === runId) {
-        setCurrentRun(null);
-      }
-      if (source === "api" && apiCurrentRun?.id === runId) {
-        setApiCurrentRun(null);
-      }
-    },
-    [currentRun, apiCurrentRun, refreshRuns]
-  );
-
-  // ─── New run (reset) ──────────────────────────────────
-  const handleNewRun = useCallback(() => {
-    setCurrentRun(null);
-    setTopic("");
-    setSendingProviders([]);
-    setProviderErrors({});
-  }, []);
-
-  // ─── API run handlers ──────────────────────────────────
-  const handleApiNewRun = useCallback(() => {
-    setApiCurrentRun(null);
-    setApiTopic("");
-    setApiSendingProviders([]);
-    setApiProviderErrors({});
-  }, []);
-
-  const handleApiLoadRun = useCallback((run: Run) => {
-    setApiCurrentRun(run);
-    setApiTopic(run.topic);
-    setApiMode(run.mode);
-    setShowApiHistory(false);
-  }, []);
-
-  const handleApiStop = useCallback(() => {
-    apiCancelledRef.current = true;
-    if (apiAbortRef.current) {
-      apiAbortRef.current.abort();
-    }
-    if (!apiCurrentRun) return;
-    const stopped = updateRunStatus(apiCurrentRun.id, "ERROR");
-    if (stopped) {
-      setApiCurrentRun({ ...stopped });
-      refreshRuns();
-    }
-    setApiSendingProviders([]);
-  }, [apiCurrentRun, refreshRuns]);
-
-  const handleApiStart = useCallback(async () => {
-    if (!apiTopic.trim()) return;
-
-    apiCancelledRef.current = false;
-    const run = createRun(apiTopic, apiMode, "api");
-    updateRunStatus(run.id, "R1_SENDING");
-    run.status = "R1_SENDING";
-    setApiCurrentRun(run);
-    apiRunRef.current = run;
-    setApiSendingProviders([]);
-    setApiProviderErrors({});
-    refreshRuns();
-
-    // Generate rounds array based on maxRounds setting
-    const rounds: Round[] = Array.from({ length: maxRounds }, (_, i) => (i + 1) as Round);
-
-    for (const round of rounds) {
-      if (apiCancelledRef.current) break;
-
-      const sendingStatus: RunStatus = `R${round}_SENDING` as RunStatus;
-      updateRunStatus(run.id, sendingStatus);
-      setApiCurrentRun((prev) =>
-        prev ? { ...prev, status: sendingStatus } : prev
-      );
-
-      for (const provider of apiProviders) {
-        if (apiCancelledRef.current) break;
-
-        setApiSendingProviders((prev) =>
-          prev.includes(provider) ? prev : [...prev, provider]
-        );
-
-        try {
-          const controller = new AbortController();
-          apiAbortRef.current = controller;
-
-          const payload = {
-            provider,
-            topic: apiTopic,
-            mode: apiMode,
-            round,
-            messages: (apiRunRef.current?.messages || []).map((m) => ({
-              provider: m.provider,
-              round: m.round,
-              role: m.role,
-              text: m.text,
-            })),
-          };
-
-          const response = await fetch("/api/agent-api", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
-
-          const data = await response.json();
-          if (!response.ok) {
-            throw new Error(data?.error || "API request failed");
-          }
-
-          const updated = addMessageToRun(run.id, {
-            runId: run.id,
-            provider,
-            round,
-            role: "assistant",
-            text: data.text,
-            timestamp: Date.now(),
-          });
-
-          if (updated) {
-            setApiCurrentRun({ ...updated });
-            apiRunRef.current = updated;
-          }
-        } catch (err) {
-          const message =
-            err instanceof Error ? err.message : "Unknown API error";
-          setApiProviderErrors((prev) => ({
-            ...prev,
-            [provider]: { code: "API_ERROR", message },
-          }));
-          const stopped = updateRunStatus(run.id, "ERROR");
-          if (stopped) {
-            setApiCurrentRun({ ...stopped });
-            refreshRuns();
-          }
-          setApiSendingProviders((prev) => prev.filter((p) => p !== provider));
-          return;
-        }
-
-        setApiSendingProviders((prev) => prev.filter((p) => p !== provider));
-      }
-
-      const waitingStatus: RunStatus = `R${round}_WAITING` as RunStatus;
-      updateRunStatus(run.id, waitingStatus);
-      setApiCurrentRun((prev) =>
-        prev ? { ...prev, status: waitingStatus } : prev
-      );
-    }
-
-    if (!apiCancelledRef.current) {
-      const done = updateRunStatus(run.id, "DONE");
-      if (done) {
-        setApiCurrentRun({ ...done });
-        refreshRuns();
-      }
-    }
-  }, [apiTopic, apiMode, apiProviders, refreshRuns]);
-
-  const runStatus: RunStatus = currentRun?.status || "IDLE";
-  const messages = currentRun?.messages || [];
-  const apiStatus: RunStatus = apiCurrentRun?.status || "IDLE";
-  const apiMessages = apiCurrentRun?.messages || [];
+  const showNewRun =
+    (activeTab === "extension" && ext.currentRun?.status === "DONE") ||
+    (activeTab === "api" && api.apiCurrentRun?.status === "DONE");
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
-      {/* Header Row */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/" className="flex items-center">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
-            </Link>
-          </Button>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-muted border border-input flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">
-                {activeTab === "api"
-                  ? "Agent Communication (API)"
-                  : "Agent Communication"}
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                {activeTab === "api"
-                  ? "API-based, turn-taking multi-model discussion"
-                  : "Multi-model debate and collaboration"}
-              </p>
-            </div>
-          </div>
-        </div>
+      <AgentPageHeader
+        activeTab={activeTab}
+        wsStatus={wsStatus}
+        connectedProviders={ext.connectedProviders}
+        showNewRun={!!showNewRun}
+        onNewRun={activeTab === "extension" ? ext.resetRun : api.resetRun}
+        onToggleHistory={() =>
+          activeTab === "extension"
+            ? history.setShowHistory(!history.showHistory)
+            : history.setShowApiHistory(!history.showApiHistory)
+        }
+      />
 
-        <div className="flex items-center gap-3">
-          {activeTab === "extension" ? (
-            <ConnectionStatus
-              wsStatus={wsStatus}
-              connectedProviders={connectedProviders}
-            />
-          ) : (
-            <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
-              API Mode
-            </span>
-          )}
-          <div className="flex items-center gap-2">
-            {activeTab === "extension" &&
-              currentRun &&
-              currentRun.status === "DONE" && (
-              <Button variant="outline" size="sm" onClick={handleNewRun}>
-                New Run
-              </Button>
-            )}
-            {activeTab === "api" &&
-              apiCurrentRun &&
-              apiCurrentRun.status === "DONE" && (
-                <Button variant="outline" size="sm" onClick={handleApiNewRun}>
-                  New Run
-                </Button>
-              )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() =>
-                activeTab === "extension"
-                  ? setShowHistory(!showHistory)
-                  : setShowApiHistory(!showApiHistory)
-              }
-            >
-              <History className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <ModeTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-      {/* Tab Switcher */}
-      <div className="mb-6 flex items-center gap-2 rounded-xl border border-input bg-card p-1.5 w-fit">
-        <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
-            activeTab === "extension"
-              ? "bg-primary/20 text-primary border-primary/20 glass-float"
-              : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
-          }`}
-          onClick={() => setActiveTab("extension")}
-        >
-          Agent Communication
-        </button>
-        <button
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all duration-200 ${
-            activeTab === "api"
-              ? "bg-primary/20 text-primary border-primary/20 glass-float"
-              : "bg-transparent text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
-          }`}
-          onClick={() => setActiveTab("api")}
-        >
-          Agent Communication (API)
-        </button>
-      </div>
-
-      {/* History Panel */}
-      {activeTab === "extension" && showHistory && (
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Run History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {extensionRuns.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No past runs.</p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {extensionRuns.map((run) => (
-                  <div
-                    key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted cursor-pointer group"
-                    onClick={() => handleLoadRun(run)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-foreground">
-                        {run.topic}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {run.mode} · {run.messages.length} messages ·{" "}
-                        {new Date(run.createdAt).toLocaleDateString()} ·{" "}
-                        {run.source === "api" ? "API" : "Extension"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          run.status === "DONE"
-                            ? "bg-emerald-400/10 text-emerald-400"
-                            : run.status === "ERROR"
-                            ? "bg-destructive/10 text-destructive"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {run.status}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRun(run.id, run.source ?? "extension");
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {activeTab === "api" && showApiHistory && (
-        <Card className="mb-6">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Run History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {apiRuns.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No past runs.</p>
-            ) : (
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {apiRuns.map((run) => (
-                  <div
-                    key={run.id}
-                    className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted cursor-pointer group"
-                    onClick={() => handleApiLoadRun(run)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate text-foreground">
-                        {run.topic}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {run.mode} · {run.messages.length} messages ·{" "}
-                        {new Date(run.createdAt).toLocaleDateString()} · API
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          run.status === "DONE"
-                            ? "bg-emerald-400/10 text-emerald-400"
-                            : run.status === "ERROR"
-                            ? "bg-destructive/10 text-destructive"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {run.status}
-                      </span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteRun(run.id, "api");
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
-                      >
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
+      {/* ═══ Extension Mode ═══ */}
       {activeTab === "extension" && (
         <>
-          {/* Model Selection Slider */}
-          <div className="mb-4">
-            <button
-              onClick={() => setShowModelPicker(!showModelPicker)}
-              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Models ({activeExtProviders.length} selected)
-              <svg
-                className={`h-3 w-3 transition-transform duration-200 ${showModelPicker ? "rotate-180" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          {history.showHistory && (
+            <RunHistoryPanel
+              runs={history.extensionRuns}
+              onLoad={handleExtLoadRun}
+              onDelete={handleDeleteRun}
+              source="extension"
+            />
+          )}
 
-            {/* Sliding model picker panel */}
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                showModelPicker ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
-              }`}
-            >
-              <Card>
-                <CardContent className="py-3 px-4">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {PROVIDERS.map((model) => {
-                      const selected = selectedExtModels.has(model);
-                      const connected = connectedProviders.includes(model);
-                      return (
-                        <button
-                          key={model}
-                          onClick={() => toggleExtModel(model)}
-                          disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-all duration-200 ${
-                            selected
-                              ? "bg-primary/10 border-primary/30 text-foreground glass-float"
-                              : "bg-card border-input text-muted-foreground hover:text-foreground hover:bg-muted"
-                          } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        >
-                          <ProviderIcon provider={model} className="h-4 w-4" />
-                          {PROVIDER_LABELS[model]}
-                          {selected && <Check className="h-3.5 w-3.5 text-primary" />}
-                          {connected && (
-                            <span className="h-1.5 w-1.5 rounded-full bg-green-500 ml-0.5" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <ExtensionModelPicker
+            selectedExtModels={ext.selectedExtModels}
+            onToggleModel={ext.toggleExtModel}
+            connectedProviders={ext.connectedProviders}
+            activeExtProviders={ext.activeExtProviders}
+            showModelPicker={ext.showModelPicker}
+            onTogglePicker={() =>
+              ext.setShowModelPicker(!ext.showModelPicker)
+            }
+            extMaxRounds={ext.extMaxRounds}
+            onMaxRoundsChange={ext.setExtMaxRounds}
+            runStatus={ext.runStatus}
+          />
 
-          {/* Launch Provider Tabs */}
-          <div className="mb-4 flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-2 text-xs"
-              onClick={() => {
-                const urls: Record<Provider, string> = {
-                  chatgpt: "https://chatgpt.com/",
-                  gemini: "https://gemini.google.com/app",
-                  claude: "https://claude.ai/new",
-                };
-                activeExtProviders.forEach((p) => window.open(urls[p], "_blank"));
-              }}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Open {activeExtProviders.length} Provider Tab{activeExtProviders.length !== 1 ? "s" : ""}
-            </Button>
-
-            {/* Extension Max Rounds Selector */}
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                Rounds
-              </label>
-              <select
-                value={extMaxRounds}
-                onChange={(e) => setExtMaxRounds(parseInt(e.target.value))}
-                className="rounded-lg border border-input bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                disabled={runStatus !== "IDLE" && runStatus !== "DONE" && runStatus !== "ERROR"}
-              >
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-                <option value={3}>3</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Run Controls */}
           <div className="mb-6">
             <RunControls
-              topic={topic}
-              mode={mode}
-              status={runStatus}
-              onTopicChange={setTopic}
-              onModeChange={setMode}
-              onStart={handleStart}
-              onStop={handleStop}
-              onMockRound={handleMockRun}
+              topic={ext.topic}
+              mode={ext.mode}
+              status={ext.runStatus}
+              onTopicChange={ext.setTopic}
+              onModeChange={ext.setMode}
+              onStart={ext.handleStart}
+              onStop={ext.handleStop}
+              onMockRound={ext.handleMockRun}
             />
           </div>
 
-          {/* Error Banner */}
-          {Object.keys(providerErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-input bg-card p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">
-                Pipeline Errors
-              </h3>
-              {Object.entries(providerErrors).map(([provider, err]) => (
-                <div key={provider} className="text-xs text-muted-foreground mb-1">
-                  <span className="font-medium">
-                    {PROVIDER_LABELS[provider as Provider]}:
-                  </span>{" "}
-                  <span className="font-mono">{err.code}</span> — {err.message}
-                </div>
-              ))}
-              <button
-                onClick={() => setProviderErrors({})}
-                className="mt-2 text-xs text-foreground hover:text-muted-foreground underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
+          <ErrorBanner
+            title="Pipeline Errors"
+            errors={ext.providerErrors}
+            onDismiss={() => ext.setProviderErrors({})}
+          />
 
-          {/* Agent Panels (dynamic columns based on selected models) */}
-          <div className={`grid grid-cols-1 ${activeExtProviders.length >= 2 ? "md:grid-cols-2" : ""} gap-4 mb-6`}>
-            {activeExtProviders.map((provider) => (
+          <div
+            className={`grid grid-cols-1 ${ext.activeExtProviders.length >= 2 ? "md:grid-cols-2" : ""} gap-4 mb-6`}
+          >
+            {ext.activeExtProviders.map((provider) => (
               <div
                 key={provider}
                 className="transition-all duration-300 ease-in-out animate-in slide-in-from-bottom-2 fade-in"
               >
                 <AgentPanel
                   provider={provider}
-                  messages={messages}
-                  isConnected={connectedProviders.includes(provider)}
-                  isSending={sendingProviders.includes(provider)}
-                  error={providerErrors[provider]}
+                  messages={ext.messages}
+                  isConnected={ext.connectedProviders.includes(provider)}
+                  isSending={ext.sendingProviders.includes(provider)}
+                  error={ext.providerErrors[provider]}
                   currentRound={
-                    runStatus.startsWith("R")
-                      ? (parseInt(runStatus[1]) as Round)
+                    ext.runStatus.startsWith("R")
+                      ? (parseInt(ext.runStatus[1]) as Round)
                       : null
                   }
                 />
@@ -908,156 +141,76 @@ export default function AgentPage() {
             ))}
           </div>
 
-          {/* Transcript Timeline */}
-          <TranscriptTimeline messages={messages} />
+          <TranscriptTimeline messages={ext.messages} />
         </>
       )}
 
+      {/* ═══ API Mode ═══ */}
       {activeTab === "api" && (
         <>
+          {history.showApiHistory && (
+            <RunHistoryPanel
+              runs={history.apiRuns}
+              onLoad={handleApiLoadRun}
+              onDelete={handleDeleteRun}
+              source="api"
+            />
+          )}
+
           <div className="mb-4 rounded-2xl border border-input bg-card p-4 text-xs text-muted-foreground">
             API mode runs fully in-process using your API keys. Responses are
             generated in turn across 3 rounds.
           </div>
 
-          {/* Model Selection */}
-          <div className="mb-6">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Model Selection</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Model 1 */}
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                      Model 1 (Left)
-                    </label>
-                    <select
-                      value={selectedModel1}
-                      onChange={(e) => setSelectedModel1(e.target.value as ExtendedProvider)}
-                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      disabled={apiStatus !== "IDLE"}
-                    >
-                      {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
-                        <option
-                          key={model}
-                          value={model}
-                          disabled={MODEL_STATUS[model] === "in-progress"}
-                        >
-                          {EXTENDED_PROVIDER_LABELS[model]}
-                          {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+          <ApiModelSelector
+            selectedModel1={api.selectedModel1}
+            selectedModel2={api.selectedModel2}
+            maxRounds={api.maxRounds}
+            onModel1Change={api.setSelectedModel1}
+            onModel2Change={api.setSelectedModel2}
+            onMaxRoundsChange={api.setMaxRounds}
+            apiStatus={api.apiStatus}
+          />
 
-                  {/* Model 2 */}
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                      Model 2 (Right)
-                    </label>
-                    <select
-                      value={selectedModel2}
-                      onChange={(e) => setSelectedModel2(e.target.value as ExtendedProvider)}
-                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      disabled={apiStatus !== "IDLE"}
-                    >
-                      {(Object.keys(EXTENDED_PROVIDER_LABELS) as ExtendedProvider[]).map((model) => (
-                        <option
-                          key={model}
-                          value={model}
-                          disabled={MODEL_STATUS[model] === "in-progress"}
-                        >
-                          {EXTENDED_PROVIDER_LABELS[model]}
-                          {MODEL_STATUS[model] === "in-progress" ? " (in progress)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Max Rounds */}
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                      Max Rounds
-                    </label>
-                    <select
-                      value={maxRounds}
-                      onChange={(e) => setMaxRounds(parseInt(e.target.value))}
-                      className="w-full rounded-lg border border-input bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      disabled={apiStatus !== "IDLE"}
-                    >
-                      <option value={1}>1 Round</option>
-                      <option value={2}>2 Rounds</option>
-                      <option value={3}>3 Rounds</option>
-                      <option value={4}>4 Rounds</option>
-                      <option value={5}>5 Rounds</option>
-                    </select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Run Controls */}
           <div className="mb-6">
             <RunControls
-              topic={apiTopic}
-              mode={apiMode}
-              status={apiStatus}
-              onTopicChange={setApiTopic}
-              onModeChange={setApiMode}
-              onStart={handleApiStart}
-              onStop={handleApiStop}
+              topic={api.apiTopic}
+              mode={api.apiMode}
+              status={api.apiStatus}
+              onTopicChange={api.setApiTopic}
+              onModeChange={api.setApiMode}
+              onStart={api.handleApiStart}
+              onStop={api.handleApiStop}
               onMockRound={() => {}}
               showMock={false}
             />
           </div>
 
-          {/* Error Banner */}
-          {Object.keys(apiProviderErrors).length > 0 && (
-            <div className="mb-4 rounded-2xl border border-input bg-card p-4">
-              <h3 className="text-sm font-semibold text-foreground mb-2">
-                API Errors
-              </h3>
-              {Object.entries(apiProviderErrors).map(([provider, err]) => (
-                <div key={provider} className="text-xs text-muted-foreground mb-1">
-                  <span className="font-medium">
-                    {PROVIDER_LABELS[provider as Provider]}:
-                  </span>{" "}
-                  <span className="font-mono">{err.code}</span> — {err.message}
-                </div>
-              ))}
-              <button
-                onClick={() => setApiProviderErrors({})}
-                className="mt-2 text-xs text-foreground hover:text-muted-foreground underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
+          <ErrorBanner
+            title="API Errors"
+            errors={api.apiProviderErrors}
+            onDismiss={() => api.setApiProviderErrors({})}
+          />
 
-          {/* Agent Panels (2 columns) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            {apiProviders.map((provider) => (
+            {api.apiProviders.map((provider) => (
               <AgentPanel
                 key={provider}
                 provider={provider}
-                messages={apiMessages}
+                messages={api.apiMessages}
                 isConnected
-                isSending={apiSendingProviders.includes(provider)}
-                error={apiProviderErrors[provider]}
+                isSending={api.apiSendingProviders.includes(provider)}
+                error={api.apiProviderErrors[provider]}
                 currentRound={
-                  apiStatus.startsWith("R")
-                    ? (parseInt(apiStatus[1]) as Round)
+                  api.apiStatus.startsWith("R")
+                    ? (parseInt(api.apiStatus[1]) as Round)
                     : null
                 }
               />
             ))}
           </div>
 
-          {/* Transcript Timeline */}
-          <TranscriptTimeline messages={apiMessages} />
+          <TranscriptTimeline messages={api.apiMessages} />
         </>
       )}
     </div>

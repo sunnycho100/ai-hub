@@ -12,7 +12,7 @@ interface TranscriptTimelineProps {
 const PROVIDER_BADGE: Record<Provider, string> = {
   chatgpt: "bg-emerald-400/10 text-emerald-400 border border-emerald-400/20",
   gemini: "bg-violet-400/10 text-violet-400 border border-violet-400/20",
-  grok: "bg-sky-400/10 text-sky-400 border border-sky-400/20",
+  claude: "bg-orange-400/10 text-orange-400 border border-orange-400/20",
 };
 
 export function TranscriptTimeline({ messages }: TranscriptTimelineProps) {

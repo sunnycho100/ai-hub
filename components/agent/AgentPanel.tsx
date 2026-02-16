@@ -17,25 +17,25 @@ interface AgentPanelProps {
 const PROVIDER_ACCENT: Record<Provider, string> = {
   chatgpt: "text-emerald-400",
   gemini: "text-violet-400",
-  grok: "text-sky-400",
+  claude: "text-orange-400",
 };
 
 const PROVIDER_DOT: Record<Provider, string> = {
   chatgpt: "bg-emerald-400",
   gemini: "bg-violet-400",
-  grok: "bg-sky-400",
+  claude: "bg-orange-400",
 };
 
 const PROVIDER_GLOW: Record<Provider, string> = {
   chatgpt: "shadow-[0_0_12px_rgba(16,185,129,0.2)]",
   gemini: "shadow-[0_0_12px_rgba(139,92,246,0.2)]",
-  grok: "shadow-[0_0_12px_rgba(56,189,248,0.2)]",
+  claude: "shadow-[0_0_12px_rgba(251,146,60,0.2)]",
 };
 
 const PROVIDER_BORDER: Record<Provider, string> = {
   chatgpt: "border-emerald-400/20",
   gemini: "border-violet-400/20",
-  grok: "border-sky-400/20",
+  claude: "border-orange-400/20",
 };
 
 const PROVIDER_SHIMMER: Record<Provider, string> = {

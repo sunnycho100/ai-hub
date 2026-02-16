@@ -13,6 +13,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.1] - 2026-02-15 - Refactor Agent page: extract custom hooks and UI components
+
+### Changed
+- **`app/agent/page.tsx` reduced from 1,065 → 218 lines** — 79% reduction in complexity
+  - Extracted all extension mode logic to `hooks/useExtensionRun.ts` (349 lines)
+  - Extracted all API mode logic to `hooks/useApiRun.ts` (230 lines)
+  - Extracted run history management to `hooks/useRunHistory.ts` (41 lines)
+  - Moved `generateMockResponse()` utility to `lib/mock.ts` (18 lines)
+  - Page now acts as thin orchestrator: wires hooks to components, coordinates cross-concern handlers
+- **10 new files created** — Modular, single-responsibility components and hooks
+  - `components/agent/ExtensionModelPicker.tsx` (138 lines) — Model checkboxes, provider tab launcher, rounds selector
+  - `components/agent/ApiModelSelector.tsx` (125 lines) — API model dropdowns (Model 1/2), max rounds selector
+  - `components/agent/AgentPageHeader.tsx` (77 lines) — Back button, page title, connection status, history toggle
+  - `components/agent/RunHistoryPanel.tsx` (73 lines) — Shared history panel (deduplicated from extension/API)
+  - `components/agent/ModeTabs.tsx` (31 lines) — Extension/API tab switcher
+  - `components/agent/ErrorBanner.tsx` (31 lines) — Shared error banner (deduplicated from extension/API)
+  - Custom hooks manage state lifecycle, WebSocket subscriptions, round progression, and API fetch loops independently
+
+### Fixed
+- **Type errors in `AgentPanel.tsx` and `TranscriptTimeline.tsx`** — Pre-existing runtime/build failures
+  - Replaced `grok` entries in `Record<Provider, string>` maps with `claude`
+  - `grok` is not in `Provider` type (only in `ExtendedProvider`), was causing TypeScript compilation errors
+  - Updated accent colors, dot colors, glow shadows, and borders across both files
+
+### Technical Details
+- **Hook extraction strategy**:
+  - `useExtensionRun`: WebSocket listener (subscribe effect), round completion logic, `advanceToRound`, model selection state, connected providers tracking, sending state, provider errors
+  - `useApiRun`: Fetch loop with AbortController, API provider filtering, model selection dropdowns, cancellation refs, turn-based round sequencing
+  - `useRunHistory`: localStorage `loadRuns`/`deleteRun` wrappers, extension/API run list splitting, history panel toggles
+- **Coordination pattern**: Page-level `handleDeleteRun` calls both `history.removeRun()` and `ext.clearCurrentIfId()` / `api.clearCurrentIfId()` to sync state across hooks
+- **Deduplication wins**: Single `RunHistoryPanel` component replaces near-identical 50-line blocks in extension/API modes; single `ErrorBanner` replaces duplicated error display logic
+- Build passes cleanly with `npx next build` — zero TypeScript errors, all routes compile successfully
+
+---
+
 ## [0.2.0] - 2026-02-15 - Add light/dark mode theme system with toggle and complete glassmorphism palette overhaul
 
 ### Added
