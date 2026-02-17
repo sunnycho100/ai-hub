@@ -22,9 +22,15 @@ cd ai-hub
 npm install
 ```
 
-3. **Run the development server**
+3. **Run the development servers**
 ```bash
 npm run dev
+```
+
+For Agent Communication with the Chrome extension, run both Next.js and the WS bus:
+
+```bash
+npm run dev:all
 ```
 
 4. **Open your browser**

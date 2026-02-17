@@ -239,8 +239,9 @@ npm install
 
 3. Start both servers (Next.js + WebSocket bus):
 ```bash
-bash start.sh
+npm run dev:all
 ```
+
 This launches the Next.js dev server on port 3000 and the WS bus on port 3333.
 
 4. (Optional) Enable API edition:
