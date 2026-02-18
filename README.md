@@ -4,29 +4,39 @@ A unified workspace for AI-powered tools — agent collaboration, content verifi
 
 ## Project Overview
 
-AI Hub is a **Layer-2 AI system** built on top of existing Large Language Models (LLMs), without training new foundation models. The core philosophy is to treat the LLM as a general intelligence engine and add higher-level layers on top: workflow orchestration, memory, trust, and style learning.
+AI Hub is a **production AI platform** built on top of existing Large Language Models (LLMs), without training new foundation models. Rather than treating LLMs as standalone chatbots, AI Hub adds the engineering layers needed for real-world reliability: deterministic orchestration, multimodal ingestion, and verifiable outputs.
 
-### The Four Layers
+### Three Core Pillars
 
-1. **Agent Orchestration Layer** — Multi-model debate and collaboration (partially implemented)
-   - Decomposes user requests into multiple execution steps
-   - Assigns each step to role-specific LLM agents
-   - Manages execution order and merges results deterministically
+1. **Reliability Engineering** — Deterministic orchestration, audit logs, and failure modes
+   - Reproducible run execution with idempotent message handling
+   - Structured audit logging for every LLM call (input, output, latency, tokens)
+   - Graceful degradation, circuit breakers, and automatic retry with backoff
+   - Run replay and debugging from audit trails
 
-2. **LLM Memory & State Layer** (TODO)
-   - Solves the LLM session volatility problem
-   - Persists user preferences, decisions, and summaries across sessions
-   - Controls what to remember, summarize, and forget
+2. **Multimodal Pipeline** — Image/PDF ingestion, OCR, layout chunking, and vision grounding
+   - Document and image upload with type detection and validation
+   - PDF parsing and OCR for scanned documents
+   - Layout-aware chunking (headers, tables, figures) with structural metadata
+   - Vision grounding via GPT-4V / Gemini Vision for figure captioning and chart summarization
 
-3. **LLM Verification & Trust Layer** (TODO)
-   - Validates factual accuracy, logical consistency, and source grounding
-   - Acts as a gatekeeper that decides whether content is safe to release
-   - Blocks or softens unverified outputs
+3. **Verifiable Outputs** — Claim-level citations and evidence-linked reports
+   - Claim-level decomposition of LLM responses with inline source attribution
+   - Evidence retrieval via web search and internal document RAG
+   - Confidence scoring and adversarial verification
+   - Interactive evidence-linked reports with exportable audit trails
 
-4. **AI Writing Layer** (TODO)
-   - Learns the user's writing style from past samples
-   - Preserves the user's "voice" when generating new content
-   - Ensures stylistic consistency rather than generic AI output
+### Supplementary Layers (Future)
+
+4. **Memory & State Layer** — Persistent context across sessions
+   - Short-term and long-term memory classification
+   - Semantic search over stored context (pgvector)
+   - Memory decay, summarization, and re-injection
+
+5. **AI Writing Layer** — Style-conditioned generation
+   - Writing sample analysis and structured style profiles
+   - Voice preservation and stylistic consistency
+   - Multi-mode generation (academic, casual, technical)
 
 ### Current Implementation
 
@@ -62,23 +72,35 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - All pages restyled: landing (single-viewport), agent, verifier, writer
 - Agent page refactored from 1,065 → 218 lines via component extraction
 
-**Phase 3: Memory & State Layer — Planned (TODO)**
+**Phase 3: Reliability Engineering — Planned (TODO)**
+- Deterministic run orchestration with reproducible step ordering
+- Structured audit logging (every LLM call, correlation IDs, tracing)
+- Failure modes: circuit breakers, graceful degradation, exponential backoff
+- Run replay and diagnostic dashboard
+
+**Phase 4: Multimodal Pipeline — Planned (TODO)**
+- Image/PDF upload with drag-and-drop UI
+- PDF parsing, OCR, and scanned document handling
+- Layout-aware chunking (headers, tables, figures, metadata)
+- Vision grounding via GPT-4V / Gemini Vision
+
+**Phase 5: Verifiable Outputs — Planned (TODO)**
+- Claim-level extraction and inline citation linking
+- Evidence retrieval (web search + internal document RAG)
+- Confidence scoring and adversarial verification
+- Evidence-linked report generation with export (Markdown, PDF, JSON)
+
+**Phase 6: Memory & State Layer — Planned (TODO)**
 - User preference persistence across sessions
 - Short-term and long-term memory classification
-- Markdown/JSON format storage
+- Semantic search with pgvector, Markdown/JSON storage
 - Context retrieval and re-injection
 
-**Phase 4: Verification & Trust Layer — Planned (TODO)**
-- Claim extraction from draft responses
-- Evidence verification via web search and RAG
-- Logic and consistency checks
-- Verification logging
-
-**Phase 5: AI Writing Layer — Planned (TODO)**
-- User writing sample collection
-- Tone, structure, and pattern analysis
+**Phase 7: AI Writing Layer — Planned (TODO)**
+- User writing sample collection and analysis
 - Structured style profile generation (JSON)
-- Style constraint injection during generation
+- Style-conditioned generation with voice preservation
+- Multi-mode writing (academic, casual, technical)
 
 ## Getting Started
 
@@ -189,22 +211,32 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 
 ### Planned Tech Stack (TODO)
 
-#### Agent Orchestration Backend
-- **Framework**: FastAPI (Python)
-- **Async Processing**: Celery + Redis
-- **LLM APIs**: OpenAI / Anthropic / Gemini
-- **Structured Outputs**: JSON Schema-based responses
+#### Reliability Engineering Backend
+- **Orchestration**: Deterministic run engine with idempotent execution
+- **Audit Logging**: PostgreSQL (append-only), structured JSON logs
+- **Tracing**: Correlation IDs, run-level tracing
+- **Failure Handling**: Circuit breakers, exponential backoff, graceful degradation
+- **Monitoring**: Health checks, diagnostic dashboard
+
+#### Multimodal Pipeline Backend
+- **PDF Parsing**: pdf.js / pdfplumber
+- **OCR**: Tesseract / cloud OCR APIs
+- **Layout Analysis**: Layout-aware chunking (headers, tables, figures)
+- **Vision Models**: GPT-4V, Gemini Vision for image grounding
+- **Storage**: AWS S3 for uploaded documents
+
+#### Verification & Evidence Backend
+- **Claim Extraction**: LLM-based decomposition
+- **Evidence Retrieval**: Web search APIs + internal document RAG
+- **Vector Search**: pgvector for semantic matching
+- **Verification LLMs**: Low-temperature adversarial validation
+- **Report Generation**: Markdown, PDF, JSON export
 
 #### Memory & State Backend
 - **Database**: PostgreSQL with JSONB
 - **Vector Search**: pgvector extension
 - **File-based Memory**: Markdown (.md)
 - **Summarization**: LLM APIs with classification
-
-#### Verification & Trust Backend
-- **Retrieval**: Web search APIs + internal document RAG
-- **Verification LLMs**: Low-temperature configuration
-- **Result Storage**: PostgreSQL verification logs
 
 #### AI Writing Backend
 - **Style Extraction**: LLM-based analysis
@@ -213,6 +245,8 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - **Storage**: PostgreSQL + Markdown
 
 #### Infrastructure
+- **Framework**: FastAPI (Python) for ML-heavy backends
+- **Async Processing**: Celery + Redis
 - **Cache/Queue**: Redis
 - **Storage**: AWS S3
 - **Deployment**: AWS (EC2, RDS, CloudFront)
@@ -429,38 +463,41 @@ ai-hub/
 - Type-safe App Router routing
 
 ### AI Verifier (Planned)
-- Two-stage pipeline: search model generates claims, verification model validates
-- Confidence scoring, source citation, fact-check reports
+- Claim-level extraction from LLM responses with inline citations
+- Evidence retrieval via web search and internal document RAG
+- Confidence scoring per claim with adversarial verification
+- Interactive evidence-linked reports with exportable audit trails
 
 ### AI Writer (Planned)
-- Style-conditioned text generation
-- Writing style analysis and matching
+- Style-conditioned text generation with voice preservation
+- Writing style analysis and structured profile matching
 - Multiple modes (academic, casual, technical)
 
 ## What You Learn from This Project
 
 ### AI / ML Perspective
 - **LLM limitations and structural compensation** — Understanding how to build reliable systems without fine-tuning foundation models
-- **Layer-2 AI design** — Treating LLMs as general intelligence engines and adding orchestration, memory, trust, and style layers on top
-- **Style learning and expressive modeling** — Extracting and preserving user voice without model training
+- **Multimodal AI pipelines** — Ingesting images, PDFs, and scanned documents alongside text for richer LLM context
+- **Verifiable AI outputs** — Decomposing LLM responses into auditable claims with evidence-linked citations
 - **Multi-agent architectures** — Coordinating multiple LLMs for debate, collaboration, and consensus
 
 ### Systems / Software Perspective
-- **LLM-centered workflow design** — Building production systems around black-box AI models
-- **Agent-based architectures** — Decomposing tasks across role-specific agents with deterministic orchestration
+- **Reliability engineering for AI** — Deterministic orchestration, audit logging, circuit breakers, and failure recovery
+- **Agent-based architectures** — Decomposing tasks across role-specific agents with reproducible execution
 - **Asynchronous execution patterns** — Managing concurrent LLM calls and state synchronization
 - **API-driven integration** — Connecting multiple AI providers with unified interfaces
 - **Chrome extension automation** — Deep DOM manipulation across different web architectures (ProseMirror, Quill, React)
 
 ### Practical / Industry Perspective
-- **Solving LLM memory problems** — Using Markdown, databases, and vector search for persistent context
-- **Trustworthy AI systems** — Designing verification layers and auditable workflows
+- **Production AI systems** — Building beyond prototypes with audit trails, failure modes, and deterministic runs
+- **Multimodal document processing** — OCR, layout-aware chunking, and vision grounding for real-world inputs
+- **Trustworthy AI systems** — Designing claim-level verification and evidence-linked reports
 - **Full AI product pipeline** — From prototype to production-ready system with real user interfaces
 - **Hybrid architectures** — Combining browser automation with server-side API orchestration
 
 ### Summary
 
-This project is **not about building new AI models**, but about **building systems that use AI correctly and reliably**. The LLM remains a black box, while structure, memory, verification, and style are layered on top to create a production-ready AI system.
+This project is **not about building new AI models**, but about **engineering systems that use AI correctly, reliably, and verifiably**. The LLM remains a black box, while reliability engineering, multimodal ingestion, and output verification are layered on top to create a production-grade AI platform.
 
 ## Design Principles
 
@@ -497,4 +534,4 @@ For questions or feedback, please open an issue on [GitHub](https://github.com/s
 
 ---
 
-**Note**: Agent Communication is functional. Verifier and Writer tools are planned for the next phase.
+**Note**: Agent Communication is functional. Reliability Engineering, Multimodal Pipeline, and Verifiable Outputs are the next planned phases.
