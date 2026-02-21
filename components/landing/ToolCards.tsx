@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MessageSquare, CheckCircle, PenTool, ArrowRight } from "lucide-react";
+import { MessageSquare, CheckCircle, PenTool, Brain, ArrowRight } from "lucide-react";
 
 const tools = [
   {
@@ -9,6 +9,12 @@ const tools = [
     description: "Multi-model debates with traceable transcripts.",
     icon: MessageSquare,
     href: "/agent",
+  },
+  {
+    title: "Memory",
+    description: "Persistent context and preferences across sessions.",
+    icon: Brain,
+    href: "/memory",
   },
   {
     title: "AI Verifier",
@@ -28,7 +34,7 @@ export function ToolCards() {
   return (
     <section id="tools" className="container mx-auto px-4 pt-8 pb-4">
       <h2 className="text-xl font-bold text-foreground mb-5">Core Tools</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {tools.map((tool) => {
           const Icon = tool.icon;
           return (

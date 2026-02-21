@@ -13,7 +13,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.2.6] - 2026-02-21 - Implement AI Memory System with PostgreSQL + pgvector
+## [0.3.1] - 2026-02-21 - Polish Memory UI: Design System Alignment & Loading States
+
+### Added
+- **`components/memory/MemoryPageHeader.tsx`** — Extracted page header matching AgentPageHeader pattern: Back button, Brain icon in rounded box, DB health status dot (emerald/destructive/muted with ping animation), memory count badge, RefreshCw button
+- **`components/memory/MemoryCategoryTabs.tsx`** — Glass pill tab switcher with Framer Motion `layoutId` animation (5 tabs: Profile, Writing Style, Satisfaction, Topics, Sessions), per-category Lucide icons and accent colors, count badges
+- **`components/memory/MemoryStatCards.tsx`** — 4-card stat overview grid (Active Memories, Superseded, Topic Links, Categories) using `glass-interactive` hover, shimmer-line loading skeletons while data loads
+- **`components/memory/MemorySearchPanel.tsx`** — Semantic search panel with input styling matching RunControls pattern, staggered `message-enter` animation on results, icon boxes with category-colored accents
+- **`components/memory/MemoryFileViewer.tsx`** — Markdown file viewer with `MarkdownLine` sub-renderer (headers, blockquotes, bullets, italic, hr), default content per category, shimmer loading skeleton, regenerate button with spinning indicator
+- **`components/memory/MemoryEmptyState.tsx`** — Three-variant empty state: "connecting" (pulse animation), "disconnected" (setup instructions with terminal commands), "empty" (onboarding with 5 memory file names and descriptions)
+- **`MEMORY_CATEGORY_ACCENTS`** in `lib/memory/types.ts` — Shared per-category accent color constant with light/dark mode variants (`text-*-500 dark:text-*-400`)
+
+### Changed
+- **`components/memory/MemoryDashboard.tsx`** — Complete rewrite from 268→141 lines. Replaced hardcoded `zinc-*` colors with theme tokens, emojis with Lucide icons, raw `<button>` with shadcn `Button`, inline `StatCard` with extracted components. Single `useMemory()` instance powers all sub-components
+- **`app/memory/page.tsx`** — Simplified to `container mx-auto px-4 py-8 max-w-7xl` layout matching agent page pattern
+- **`components/landing/ToolCards.tsx`** — Added Memory card (Brain icon, `/memory` route), grid changed from `md:grid-cols-3` to `md:grid-cols-2 lg:grid-cols-4`
+
+### Fixed
+- **Light mode readiness** — Replaced all hardcoded `text-zinc-*`, `bg-zinc-*`, `border-zinc-*` in memory dashboard with theme tokens (`text-foreground`, `bg-card`, `bg-muted`, `border-input`, `text-primary`, `text-muted-foreground`, `text-destructive`)
+- **Duplicate hook calls** — Removed `useMemory()` from page.tsx; embedded MemoryPageHeader inside MemoryDashboard so a single hook instance drives all state
+- **Removed inline rgba style** — Status dot in MemoryPageHeader no longer uses hardcoded `style={{ color: "rgba(52,211,153,0.4)" }}`; CSS class handles the glow
+- **DRY violation** — Extracted duplicate `CATEGORY_ACCENT` maps from MemoryCategoryTabs and MemorySearchPanel into shared `MEMORY_CATEGORY_ACCENTS` constant
+- **Accent contrast on white backgrounds** — Changed category accents from `*-400` to `text-*-500 dark:text-*-400` for proper contrast in both themes
+
+---
+
+## [0.3.0] - 2026-02-21 - Implement AI Memory System with PostgreSQL + pgvector
 
 ### Added
 - **Full memory system architecture** — 5-category memory classification (user preferences, project context, workflow patterns, knowledge/facts, interaction style) with short-term buffer and long-term store backed by PostgreSQL + pgvector

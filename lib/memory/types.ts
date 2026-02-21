@@ -34,6 +34,15 @@ export const MEMORY_CATEGORY_DESCRIPTIONS: Record<MemoryCategory, string> = {
   session_history: "Condensed summaries of each conversation session",
 };
 
+/** Per-category accent colors for UI components */
+export const MEMORY_CATEGORY_ACCENTS: Record<MemoryCategory, string> = {
+  user_profile: "text-violet-500 dark:text-violet-400",
+  writing_style: "text-sky-500 dark:text-sky-400",
+  output_satisfaction: "text-emerald-500 dark:text-emerald-400",
+  topic_knowledge: "text-amber-500 dark:text-amber-400",
+  session_history: "text-rose-500 dark:text-rose-400",
+};
+
 /** Source of a memory signal */
 export type MemorySource = "user_input" | "ai_response" | "inferred";
 
