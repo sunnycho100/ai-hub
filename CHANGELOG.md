@@ -13,6 +13,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.2] - 2026-02-21 - Wire Memory System into Extension Mode + Local DB Setup
+
+### Added
+- **Extension mode memory integration** in `hooks/useExtensionRun.ts` — Added `memorySessionIdRef` and `memoryContextRef` refs. `startRun()` now creates a memory session via `/api/memory/session`, fetches existing memory context via `/api/memory/context`, and captures the topic as a short-term memory signal via `/api/memory/capture`. All memory calls are fire-and-forget so they never block or break extension flow
+- **AI response capture in WS listener** — Every `NEW_MESSAGE` with `role: "assistant"` received from the Chrome extension is captured to `short_term_memories` (first 2000 chars, with provider and round metadata)
+- **Consolidation on run completion** — `checkRoundCompletion()` triggers `/api/memory/consolidate` when all rounds finish (DONE state), extracting facts from STM → LTM → .md file regeneration
+- **Consolidation on early stop** — `handleStop()` also triggers consolidation so partial conversations still get their memories extracted
+
+### Changed
+- **`hooks/useExtensionRun.ts`** — `startRun()` changed from sync to `async` to support awaiting memory session creation before dispatching prompts
+- **`package.json`** — Fixed `db:setup` script database name from `aihub` to `ai_hub_memory` to match actual database
+
+### Technical Details
+- Both communication modes (API and Extension) now feed into the identical memory pipeline: session creation → STM capture → consolidation → LTM storage → .md file regeneration
+- Extension mode captures the same data as API mode: topic (as `user_input`), AI responses (as `ai_response` with provider/round metadata, truncated to 2000 chars)
+- Memory context fetched at run start is available via `memoryContextRef` for future prompt injection into extension-mode prompts
+
+---
+
 ## [0.3.1] - 2026-02-21 - Polish Memory UI: Design System Alignment & Loading States
 
 ### Added

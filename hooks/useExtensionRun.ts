@@ -75,6 +75,10 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
 
   const runProvidersRef = useRef<Provider[]>([...PROVIDERS]);
 
+  // ─── Memory session ref ────────────────────────────────
+  const memorySessionIdRef = useRef<string | null>(null);
+  const memoryContextRef = useRef<string>("");
+
   const runStatus: RunStatus = currentRun?.status || "IDLE";
   const messages = currentRun?.messages || [];
 
@@ -182,6 +186,17 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
             setCurrentRun({ ...doneRun });
             refreshRuns();
           }
+
+          // ─── Memory: trigger consolidation on DONE ────
+          if (memorySessionIdRef.current) {
+            fetch("/api/memory/consolidate", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: memorySessionIdRef.current,
+              }),
+            }).catch(() => {});
+          }
         }
       }
     },
@@ -228,7 +243,7 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
   );
 
   const startRun = useCallback(
-    (runTopic: string, runMode: RunMode, providers: Provider[]) => {
+    async (runTopic: string, runMode: RunMode, providers: Provider[]) => {
       if (providers.length === 0) return;
 
       runProvidersRef.current = [...providers];
@@ -239,6 +254,50 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
       setCurrentRun(run);
       setSendingProviders([...runProvidersRef.current]);
       setProviderErrors({});
+
+      // ─── Memory: create session & fetch context ─────────
+      memorySessionIdRef.current = null;
+      memoryContextRef.current = "";
+      try {
+        const sessionRes = await fetch("/api/memory/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ runId: run.id }),
+        });
+        if (sessionRes.ok) {
+          const session = await sessionRes.json();
+          memorySessionIdRef.current = session.id;
+        }
+      } catch {
+        // Memory is non-blocking — continue without it
+      }
+
+      try {
+        const contextRes = await fetch(
+          `/api/memory/context?topic=${encodeURIComponent(runTopic)}`
+        );
+        if (contextRes.ok) {
+          const ctx = await contextRes.json();
+          memoryContextRef.current = ctx.contextBlock || "";
+        }
+      } catch {
+        memoryContextRef.current = "";
+      }
+
+      // Capture the topic as a short-term memory signal
+      if (memorySessionIdRef.current) {
+        fetch("/api/memory/capture", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: memorySessionIdRef.current,
+            type: "topic",
+            content: runTopic,
+            source: "user_input",
+          }),
+        }).catch(() => {});
+      }
+      // ─── End memory setup ───────────────────────────────
 
       for (const provider of runProvidersRef.current) {
         const promptText = buildR1Prompt(runTopic, runMode);
@@ -313,6 +372,22 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
           if (updated) {
             setCurrentRun({ ...updated });
             checkRoundCompletion(updated, msg.round);
+          }
+
+          // ─── Memory: capture AI response ──────────────
+          if (memorySessionIdRef.current && msg.text && msg.role === "assistant") {
+            fetch("/api/memory/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: memorySessionIdRef.current,
+                type: "message",
+                content: (msg.text as string).slice(0, 2000),
+                source: "ai_response",
+                provider: msg.provider,
+                round: msg.round,
+              }),
+            }).catch(() => {});
           }
           break;
         }
@@ -502,6 +577,17 @@ export function useExtensionRun({ send, subscribe, refreshRuns, wsStatus }: UseE
       refreshRuns();
     }
     setSendingProviders([]);
+
+    // ─── Memory: consolidate what we have so far ────
+    if (memorySessionIdRef.current) {
+      fetch("/api/memory/consolidate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: memorySessionIdRef.current,
+        }),
+      }).catch(() => {});
+    }
   }, [currentRun, refreshRuns]);
 
   // ─── Mock run ─────────────────────────────────────────

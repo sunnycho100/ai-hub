@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "bus": "node tools/ws-bus/server.js",
-    "db:setup": "psql -d aihub -f lib/memory/schema.sql",
+    "db:setup": "psql -d ai_hub_memory -f lib/memory/schema.sql",
     "dev:all": "concurrently \"npm run dev\" \"npm run bus\""
   },
   "repository": {
