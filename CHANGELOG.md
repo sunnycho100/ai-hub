@@ -13,6 +13,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.6] - 2026-02-21 - Implement AI Memory System with PostgreSQL + pgvector
+
+### Added
+- **Full memory system architecture** — 5-category memory classification (user preferences, project context, workflow patterns, knowledge/facts, interaction style) with short-term buffer and long-term store backed by PostgreSQL + pgvector
+- **`lib/memory/types.ts`** — Core type definitions: `MemoryCategory`, `ShortTermMemory`, `LongTermMemory`, `MemorySession`, `TopicEdge`, `MemorySearchResult`, `MemoryContext`, `ConsolidationResult`, `ExtractedMemory`, API request/response types
+- **`lib/memory/schema.sql`** — PostgreSQL schema with 6 tables: `memory_users`, `memory_sessions`, `short_term_memories`, `long_term_memories` (with `vector(1536)` column via pgvector), `topic_edges`, `memory_files`. Includes indexes, constraints, default user seed, and default memory file seeds
+- **`lib/memory/db.ts`** — PostgreSQL connection pool using `pg` with `getPool()`, `query()`, `healthCheck()`, `generateMemoryId()`, `closePool()`. Env-configurable via `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
+- **`lib/memory/EmbeddingService.ts`** — OpenAI embedding integration with `getEmbedding()` and `getEmbeddings()` (batch). Uses `text-embedding-3-small` (1536 dims). Falls back to zero-vector if no API key
+- **`lib/memory/ShortTermBuffer.ts`** — Session-scoped raw signal capture: `createSession()`, `getSession()`, `getActiveSessionForRun()`, `markSessionIdle()`, `markSessionConsolidated()`, `getIdleSessions()`, `captureMemory()`, `getSessionMemories()`, `countSessionMemories()`, `clearSessionMemories()`
+- **`lib/memory/LongTermStore.ts`** — Persistent memory store with vector search: `storeMemory()` (with embedding), `supersedeMemory()` (bi-temporal versioning), `searchMemories()` (cosine similarity + recency boost scoring), `getMemoriesByCategory()`, `getAllActiveMemories()`, `invalidateMemory()`, `storeTopicEdge()`, `getTopicEdges()`, `getMemoryStats()`
+- **`lib/memory/MemoryFileManager.ts`** — Markdown file generation per category: `getMemoryFile()`, `getAllMemoryFiles()`, `updateMemoryFile()`, `regenerateMemoryFile()` (builds structured markdown from memories grouped by importance), `regenerateAllMemoryFiles()`
+- **`lib/memory/MemoryService.ts`** — Unified facade: `buildMemoryContext()` (formats relevant memories for prompt injection with token budget), re-exports all STM/LTM/Files operations
+- **`lib/memory/ConsolidationEngine.ts`** — LLM-powered extraction: `consolidateSession()` (gathers STM → LLM extraction → deduplication → LTM store → .md file regeneration), `checkDuplicate()` (similarity >0.9 threshold), `parseExtractedMemories()`, `processTopicEdges()`. Uses `gpt-4o-mini` with temperature 0.3
+- **`lib/memory/prompts.ts`** — LLM prompt templates: `buildExtractionPrompt()` (extracts facts + handles superseding), `buildTopicExtractionPrompt()` (knowledge graph edges), `buildLightweightExtractionPrompt()` (quick single-fact extraction)
+- **`lib/memory/IdleDetector.ts`** — Hybrid idle detection: `startIdleDetector()` (polling loop), `processIdleSessions()` (lightweight at 5min, deep consolidation at 30min), `triggerConsolidation()` (manual trigger), `notifyIdle()`, `notifyActive()`
+- **`lib/memory/index.ts`** — Barrel export for the memory module
+- **8 API routes under `app/api/memory/`**:
+  - `session/route.ts` — POST (create session), GET (list sessions)
+  - `capture/route.ts` — POST (capture memory signal), GET (list session memories)
+  - `search/route.ts` — POST (semantic search over memories)
+  - `consolidate/route.ts` — POST (trigger consolidation for a session)
+  - `context/route.ts` — GET (build memory context for prompt injection)
+  - `files/route.ts` — GET (list/view memory files), POST (regenerate memory file)
+  - `stats/route.ts` — GET (memory statistics by category)
+  - `health/route.ts` — GET (database health check)
+- **`hooks/useMemory.ts`** — React hook for memory dashboard: `checkHealth()`, `fetchStats()`, `fetchFiles()`, `fetchFile()`, `regenerateFile()`, `search()`, `deleteMemory()`. Auto-fetches stats + files on mount if DB healthy
+- **`components/memory/MemoryDashboard.tsx`** — Full dashboard UI with stat cards, category breakdown with clickable tabs, search with results display, .md file viewer with regenerate button. Dark theme, color-coded categories. Shows "Database Not Connected" fallback when PG unavailable
+- **`app/memory/page.tsx`** — Memory page with Framer Motion entrance animation, header, and MemoryDashboard component
+- **`.env.example`** — Template with AI provider keys + PostgreSQL configuration variables
+
+### Changed
+- **`app/api/agent-api/route.ts`** — Added `memoryContext?: string` and `sessionId?: string` to `AgentApiRequest`. `buildTurnPrompt()` accepts optional `memoryContext` and appends it. POST handler passes `memoryContext` through
+- **`lib/prompts.ts`** — `buildR1Prompt()` now accepts optional `memoryContext?: string` parameter, inserts it between topic and instructions
+- **`hooks/useApiRun.ts`** — Added `memorySessionIdRef` and `memoryContextRef`. On run start: creates memory session via API, fetches memory context, captures topic. During rounds: passes `memoryContext` in payload, captures AI responses as STM. On run completion: triggers consolidation via API
+- **`lib/nav.ts`** — Added `Brain` icon import from `lucide-react`, added Memory nav item (`/memory`)
+- **`package.json`** — Added `pg` (v8.16.0), `pgvector` (v0.2.0) to dependencies; `@types/pg` (v8.15.4) to devDependencies; added `db:setup` script
+
+### Technical Details
+- **Architecture**: Benchmarked against Mem0, Letta/MemGPT, Zep/Graphiti, ChatGPT Memory, and OpenAI Conversations API. Hybrid approach combining short-term buffer (session-scoped raw signals) with long-term store (deduplicated, embedded, versioned memories)
+- **Embedding model**: OpenAI `text-embedding-3-small` (1536 dimensions) for semantic search. Cosine similarity with recency boost scoring for relevance ranking
+- **Consolidation pipeline**: Hybrid idle detection (lightweight extraction at 5min idle, deep consolidation at 30min). LLM-powered fact extraction via `gpt-4o-mini` with duplicate detection (>0.9 similarity threshold) and bi-temporal versioning (supersede, not delete)
+- **Memory files**: Per-category Markdown files auto-generated from stored memories, grouped by importance. Serves as human-readable memory state and prompt context source
+- **Context injection**: Memory context is built with a configurable token budget and injected into agent prompts between the topic and instructions sections
+- **Database**: PostgreSQL with pgvector extension for vector similarity search. Connection pool via `pg` npm package with environment-configurable connection parameters
+
+### Important Note
+- PostgreSQL with pgvector extension must be installed and configured for the memory system to function. The dashboard gracefully falls back to a "Database Not Connected" state when PG is unavailable. See `.env.example` for required environment variables and run `npm run db:setup` to initialize the schema.
+
+---
+
 ## [0.2.5] - 2026-02-16 - Harden extension-mode WS reliability and start gating
 
 ### Fixed

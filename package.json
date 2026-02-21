@@ -9,6 +9,7 @@
     "start": "next start",
     "lint": "next lint",
     "bus": "node tools/ws-bus/server.js",
+    "db:setup": "psql -d aihub -f lib/memory/schema.sql",
     "dev:all": "concurrently \"npm run dev\" \"npm run bus\""
   },
   "repository": {
@@ -31,6 +32,8 @@
     "framer-motion": "^12.34.0",
     "lucide-react": "^0.563.0",
     "next": "^16.1.6",
+    "pg": "^8.18.0",
+    "pgvector": "^0.2.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "simple-icons": "^16.8.0",
@@ -42,6 +45,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.2.0",
+    "@types/pg": "^8.16.0",
     "@types/react": "^19.2.11",
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",

@@ -21,6 +21,8 @@ interface AgentApiRequest {
   mode: RunMode;
   round: Round;
   messages: IncomingMessage[];
+  memoryContext?: string;
+  sessionId?: string;
 }
 
 function buildTurnPrompt(
@@ -28,7 +30,8 @@ function buildTurnPrompt(
   topic: string,
   mode: RunMode,
   round: Round,
-  messages: IncomingMessage[]
+  messages: IncomingMessage[],
+  memoryContext?: string
 ) {
   const label = EXTENDED_PROVIDER_LABELS[provider];
   const modeLine =
@@ -57,6 +60,7 @@ function buildTurnPrompt(
     history,
     "",
     "Respond with your next turn. Keep it concise and avoid repeating prior points verbatim.",
+    ...(memoryContext ? ["\n", memoryContext] : []),
   ].join("\n");
 }
 
@@ -164,7 +168,8 @@ export async function POST(req: Request) {
       body.topic,
       body.mode,
       body.round,
-      body.messages || []
+      body.messages || [],
+      body.memoryContext
     );
 
     let text: string | undefined;

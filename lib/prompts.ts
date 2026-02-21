@@ -10,13 +10,16 @@
 import { Provider, RunMode, PROVIDER_LABELS, TranscriptMessage } from "./types";
 
 /** Build the Round 1 prompt: answer the topic independently. */
-export function buildR1Prompt(topic: string, mode: RunMode): string {
+export function buildR1Prompt(topic: string, mode: RunMode, memoryContext?: string): string {
+  const memoryBlock = memoryContext ? ["\n", memoryContext, ""] : [];
+
   if (mode === "debate") {
     return [
       `You are participating in a multi-AI debate on the following topic:`,
       ``,
       `"${topic}"`,
       ``,
+      ...memoryBlock,
       `Provide your independent analysis and position. Be thoughtful, specific, and support your reasoning with evidence or logic.`,
       `Keep your response focused and under 500 words.`,
     ].join("\n");
@@ -28,6 +31,7 @@ export function buildR1Prompt(topic: string, mode: RunMode): string {
     ``,
     `"${topic}"`,
     ``,
+    ...memoryBlock,
     `Provide your best initial answer or approach. Be thorough but concise.`,
     `Keep your response focused and under 500 words.`,
   ].join("\n");

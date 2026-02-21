@@ -63,6 +63,10 @@ export function useApiRun({ refreshRuns }: UseApiRunParams) {
     setApiSendingProviders([]);
   }, [apiCurrentRun, refreshRuns]);
 
+  // ─── Memory session ref ────────────────────────────────
+  const memorySessionIdRef = useRef<string | null>(null);
+  const memoryContextRef = useRef<string>("");
+
   // ─── Start ────────────────────────────────────────────
   const handleApiStart = useCallback(async () => {
     if (!apiTopic.trim()) return;
@@ -76,6 +80,48 @@ export function useApiRun({ refreshRuns }: UseApiRunParams) {
     setApiSendingProviders([]);
     setApiProviderErrors({});
     refreshRuns();
+
+    // ─── Memory: create session & fetch context ─────────
+    try {
+      const sessionRes = await fetch("/api/memory/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ runId: run.id }),
+      });
+      if (sessionRes.ok) {
+        const session = await sessionRes.json();
+        memorySessionIdRef.current = session.id;
+      }
+    } catch {
+      // Memory is non-blocking — continue without it
+    }
+
+    try {
+      const contextRes = await fetch(
+        `/api/memory/context?topic=${encodeURIComponent(apiTopic)}`
+      );
+      if (contextRes.ok) {
+        const ctx = await contextRes.json();
+        memoryContextRef.current = ctx.contextBlock || "";
+      }
+    } catch {
+      memoryContextRef.current = "";
+    }
+
+    // Capture the topic as a short-term memory signal
+    if (memorySessionIdRef.current) {
+      fetch("/api/memory/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: memorySessionIdRef.current,
+          type: "topic",
+          content: apiTopic,
+          source: "user_input",
+        }),
+      }).catch(() => {});
+    }
+    // ─── End memory setup ───────────────────────────────
 
     const rounds: Round[] = Array.from(
       { length: maxRounds },
@@ -113,6 +159,8 @@ export function useApiRun({ refreshRuns }: UseApiRunParams) {
               role: m.role,
               text: m.text,
             })),
+            memoryContext: memoryContextRef.current || undefined,
+            sessionId: memorySessionIdRef.current || undefined,
           };
 
           const response = await fetch("/api/agent-api", {
@@ -139,6 +187,22 @@ export function useApiRun({ refreshRuns }: UseApiRunParams) {
           if (updated) {
             setApiCurrentRun({ ...updated });
             apiRunRef.current = updated;
+          }
+
+          // ─── Memory: capture AI response ──────────────
+          if (memorySessionIdRef.current && data.text) {
+            fetch("/api/memory/capture", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                sessionId: memorySessionIdRef.current,
+                type: "message",
+                content: data.text.slice(0, 2000),
+                source: "ai_response",
+                provider,
+                round,
+              }),
+            }).catch(() => {});
           }
         } catch (err) {
           const message =
@@ -175,6 +239,17 @@ export function useApiRun({ refreshRuns }: UseApiRunParams) {
       if (done) {
         setApiCurrentRun({ ...done });
         refreshRuns();
+      }
+
+      // ─── Memory: mark session idle for consolidation ──
+      if (memorySessionIdRef.current) {
+        fetch("/api/memory/consolidate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId: memorySessionIdRef.current,
+          }),
+        }).catch(() => {});
       }
     }
   }, [apiTopic, apiMode, apiProviders, refreshRuns, maxRounds]);

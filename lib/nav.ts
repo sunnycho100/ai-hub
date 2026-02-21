@@ -1,4 +1,4 @@
-import { MessageSquare, Shield, PenTool, LucideIcon } from "lucide-react";
+import { MessageSquare, Shield, PenTool, Brain, LucideIcon } from "lucide-react";
 
 export interface NavItem {
   title: string;
@@ -25,5 +25,11 @@ export const navItems: NavItem[] = [
     href: "/writer",
     icon: PenTool,
     description: "Style-conditioned writing assistant",
+  },
+  {
+    title: "Memory",
+    href: "/memory",
+    icon: Brain,
+    description: "AI memory across conversations",
   },
 ];

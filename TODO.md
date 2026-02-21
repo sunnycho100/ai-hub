@@ -294,27 +294,27 @@ A "feature" is image upload + API call. A "system" is everything above together.
 
 ---
 
-## Phase 5 – Memory & State Layer (TODO)
+## Phase 5 – Memory & State Layer (Done)
 
 ### Milestone 18 – Memory Architecture
-- [ ] Design memory classification system (short-term vs long-term)
-- [ ] Create PostgreSQL schema with JSONB for flexible memory storage
-- [ ] Implement pgvector extension for semantic search
-- [ ] Build Markdown-based memory file system
-- [ ] Design memory retrieval API
+- [x] Design memory classification system (short-term vs long-term)
+- [x] Create PostgreSQL schema with JSONB for flexible memory storage
+- [x] Implement pgvector extension for semantic search
+- [x] Build Markdown-based memory file system
+- [x] Design memory retrieval API
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
 ### Milestone 19 – Memory Capture & Context Injection
-- [ ] Capture user interactions and decisions during runs
-- [ ] Classify and store memories in Markdown/JSON formats
-- [ ] Build semantic search with relevance ranking
-- [ ] Design context injection and re-injection strategies
-- [ ] Add memory decay, summarization, and cleanup policies
+- [x] Capture user interactions and decisions during runs
+- [x] Classify and store memories in Markdown/JSON formats
+- [x] Build semantic search with relevance ranking
+- [x] Design context injection and re-injection strategies
+- [x] Add memory decay, summarization, and cleanup policies
 
-**Status:** ⬜ Not started
+**Status:** ✅ Complete
 
 ---
 
@@ -334,6 +334,14 @@ A "feature" is image upload + API call. A "system" is everything above together.
 ## Implementation History
 
 ### Completed
+- ✅ Milestones 18–19: Memory & State Layer (v0.2.6)
+  - PostgreSQL + pgvector schema (6 tables, vector(1536) embeddings)
+  - Short-term buffer + long-term store with bi-temporal versioning
+  - LLM-powered consolidation engine (gpt-4o-mini, idle detection)
+  - Markdown memory file system (per-category, auto-regenerated)
+  - 8 API routes (/api/memory/*), context injection into agent prompts
+  - Memory dashboard UI with search, stats, file viewer
+  - useMemory hook, useApiRun integration for automatic capture
 - ✅ Milestone 8 (partial): Pipeline Debugging & Fixes (v0.0.6)
   - Root cause: stale selectors + silent error swallowing + no tab validation
   - Content scripts v2: 8+ fallback selectors, 5-strategy paste, debug overlay

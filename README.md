@@ -26,12 +26,15 @@ AI Hub is a **production AI platform** built on top of existing Large Language M
    - Confidence scoring and adversarial verification
    - Interactive evidence-linked reports with exportable audit trails
 
-### Supplementary Layers (Future)
+### Supplementary Layers
 
-4. **Memory & State Layer** — Persistent context across sessions
-   - Short-term and long-term memory classification
-   - Semantic search over stored context (pgvector)
-   - Memory decay, summarization, and re-injection
+4. **Memory & State Layer** — Persistent context across sessions ✅
+   - Short-term buffer + long-term store with PostgreSQL + pgvector
+   - 5-category classification (user preferences, project context, workflow patterns, knowledge/facts, interaction style)
+   - Semantic search via OpenAI text-embedding-3-small (1536 dims) with cosine similarity + recency boost
+   - LLM-powered consolidation engine with hybrid idle detection
+   - Per-category Markdown memory files, auto-regenerated
+   - Context injection into agent prompts with configurable token budget
 
 5. **AI Writing Layer** — Style-conditioned generation
    - Writing sample analysis and structured style profiles
@@ -90,11 +93,13 @@ Agent Communication now also offers an **API edition**: a server-side route that
 - Confidence scoring and adversarial verification
 - Evidence-linked report generation with export (Markdown, PDF, JSON)
 
-**Phase 6: Memory & State Layer — Planned (TODO)**
-- User preference persistence across sessions
-- Short-term and long-term memory classification
-- Semantic search with pgvector, Markdown/JSON storage
-- Context retrieval and re-injection
+**Phase 6: Memory & State Layer — Done**
+- PostgreSQL + pgvector schema (6 tables, vector embeddings)
+- Short-term buffer (session-scoped) + long-term store (deduplicated, versioned)
+- LLM-powered consolidation engine with hybrid idle detection
+- 5-category classification, semantic search, Markdown memory files
+- 8 API routes (`/api/memory/*`), Memory dashboard UI (`/memory`)
+- Automatic context injection into agent prompts during runs
 
 **Phase 7: AI Writing Layer — Planned (TODO)**
 - User writing sample collection and analysis
@@ -207,6 +212,13 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - **Providers**: OpenAI (gpt-4o-mini), Gemini (gemini-2.5-flash-lite), Grok (grok-2-latest)
 - **Auth**: API keys via `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`
 
+### Memory System
+- **Database**: PostgreSQL with pgvector extension
+- **Embeddings**: OpenAI `text-embedding-3-small` (1536 dimensions)
+- **Consolidation**: `gpt-4o-mini` (temperature 0.3) for memory extraction
+- **Storage**: `pg` (v8.16.0), `pgvector` (v0.2.0)
+- **API**: 8 routes under `/api/memory/` (session, capture, search, consolidate, context, files, stats, health)
+
 ---
 
 ### Planned Tech Stack (TODO)
@@ -232,11 +244,13 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - **Verification LLMs**: Low-temperature adversarial validation
 - **Report Generation**: Markdown, PDF, JSON export
 
-#### Memory & State Backend
-- **Database**: PostgreSQL with JSONB
-- **Vector Search**: pgvector extension
-- **File-based Memory**: Markdown (.md)
-- **Summarization**: LLM APIs with classification
+#### Memory & State Backend ✅
+- **Database**: PostgreSQL with pgvector extension (vector(1536) columns)
+- **Vector Search**: Cosine similarity with recency boost scoring
+- **Embeddings**: OpenAI `text-embedding-3-small` via `EmbeddingService`
+- **File-based Memory**: Per-category Markdown files, auto-regenerated
+- **Consolidation**: `gpt-4o-mini` with hybrid idle detection (5min lightweight, 30min deep)
+- **NPM Packages**: `pg` (v8.16.0), `pgvector` (v0.2.0), `@types/pg` (v8.15.4)
 
 #### AI Writing Backend
 - **Style Extraction**: LLM-based analysis
@@ -257,6 +271,7 @@ Model configurations are defined in `app/api/agent-api/route.ts`.
 - Node.js 18.x or higher
 - npm
 - Google Chrome (for the extension)
+- PostgreSQL 15+ with pgvector extension (for memory system)
 
 ### Installation
 
@@ -287,6 +302,22 @@ This launches the Next.js dev server on port 3000 and the WS bus on port 3333.
     ```
   - In the UI, switch to **Agent Communication (API)**.
 
+5. (Optional) Enable Memory System:
+  - Install PostgreSQL and the pgvector extension
+  - Add database config to `.env.local`:
+    ```bash
+    PGHOST=localhost
+    PGPORT=5432
+    PGDATABASE=ai_hub_memory
+    PGUSER=your_user
+    PGPASSWORD=your_password
+    ```
+  - Initialize the schema:
+    ```bash
+    npm run db:setup
+    ```
+  - See `.env.example` for all available configuration variables
+
 5. Load the Chrome extension:
    - Open `chrome://extensions/`
    - Enable **Developer mode**
@@ -301,6 +332,7 @@ This launches the Next.js dev server on port 3000 and the WS bus on port 3333.
 npm run dev          # Start Next.js dev server (port 3000)
 npm run bus          # Start WebSocket bus (port 3333)
 npm run dev:all      # Start both concurrently
+npm run db:setup     # Initialize PostgreSQL memory schema
 npm run build        # Build for production
 npm run start        # Start production server
 npm run lint         # Run ESLint
@@ -317,16 +349,28 @@ ai-hub/
 │   ├── agent/
 │   │   └── page.tsx            # Agent orchestrator (run controls, transcript)
 │   ├── api/
-│   │   └── agent-api/
-│   │       └── route.ts        # Server-side API for agent communication
+│   │   ├── agent-api/
+│   │   │   └── route.ts        # Server-side API for agent communication
+│   │   └── memory/             # Memory system API (8 routes)
+│   │       ├── session/        # Session create/list
+│   │       ├── capture/        # Memory signal capture
+│   │       ├── search/         # Semantic search
+│   │       ├── consolidate/    # Session consolidation
+│   │       ├── context/        # Context building for prompts
+│   │       ├── files/          # Memory file view/regenerate
+│   │       ├── stats/          # Category statistics
+│   │       └── health/         # DB health check
 │   ├── verifier/
 │   │   └── page.tsx            # AI Verifier (planned)
+│   ├── memory/
+│   │   └── page.tsx            # Memory dashboard
 │   └── writer/
 │       └── page.tsx            # AI Writer (planned)
 ├── hooks/
 │   ├── useExtensionRun.ts      # Extension mode run orchestration (retry, readiness gating)
-│   ├── useApiRun.ts            # API mode run orchestration
-│   └── useRunHistory.ts        # Run history management
+│   ├── useApiRun.ts            # API mode run orchestration (+ memory capture/injection)
+│   ├── useRunHistory.ts        # Run history management
+│   └── useMemory.ts            # Memory dashboard hook (health, stats, files, search)
 ├── components/
 │   ├── layout/
 │   │   ├── AppShell.tsx        # Main layout shell (theme, landing detection)
@@ -346,6 +390,8 @@ ai-hub/
 │   │   ├── RunControls.tsx      # Topic input, mode toggle, start/stop
 │   │   ├── RunHistoryPanel.tsx  # Historical run browser
 │   │   └── TranscriptTimeline.tsx # Message transcript display
+│   ├── memory/
+│   │   └── MemoryDashboard.tsx  # Memory stats, search, file viewer
 │   ├── landing/
 │   │   ├── Hero.tsx            # Hero section
 │   │   ├── ToolCards.tsx       # Tool showcase cards
@@ -357,7 +403,20 @@ ai-hub/
 │   ├── useWebSocket.ts         # React hook for WS subscribe/send
 │   ├── store.ts                # Agent state machine + localStorage persistence
 │   ├── types.ts                # Shared TypeScript types (WS message protocol)
-│   ├── prompts.ts              # Prompt templates for each round
+│   ├── prompts.ts              # Prompt templates for each round (+ memory context)
+│   ├── memory/                 # Memory system core
+│   │   ├── types.ts            # Memory type definitions
+│   │   ├── schema.sql          # PostgreSQL + pgvector schema
+│   │   ├── db.ts               # Connection pool management
+│   │   ├── EmbeddingService.ts # OpenAI embedding integration
+│   │   ├── ShortTermBuffer.ts  # Session-scoped memory capture
+│   │   ├── LongTermStore.ts    # Persistent store with vector search
+│   │   ├── MemoryFileManager.ts# Per-category Markdown generation
+│   │   ├── MemoryService.ts    # Unified facade
+│   │   ├── ConsolidationEngine.ts # LLM-powered extraction
+│   │   ├── IdleDetector.ts     # Hybrid idle detection
+│   │   ├── prompts.ts          # Extraction prompt templates
+│   │   └── index.ts            # Barrel export
 │   ├── theme.tsx               # Light/dark theme provider
 │   ├── liquidTransitions.ts    # Spring physics & animation variants
 │   ├── mock.ts                 # Mock response generator for testing
@@ -390,6 +449,7 @@ ai-hub/
 |-------|-------------|--------|
 | `/` | Landing page | Implemented |
 | `/agent` | Agent Communication (orchestrator + transcript) | Implemented |
+| `/memory` | Memory Dashboard (stats, search, file viewer) | Implemented |
 | `/verifier` | AI Verifier tool | Planned |
 | `/writer` | AI Writer tool | Planned |
 
@@ -398,6 +458,14 @@ ai-hub/
 | Route | Description |
 |-------|-------------|
 | `/api/agent-api` | Server-side Agent Communication (API edition) |
+| `/api/memory/session` | Memory session management (create/list) |
+| `/api/memory/capture` | Capture memory signals during runs |
+| `/api/memory/search` | Semantic search over stored memories |
+| `/api/memory/consolidate` | Trigger session consolidation |
+| `/api/memory/context` | Build memory context for prompt injection |
+| `/api/memory/files` | View/regenerate per-category memory files |
+| `/api/memory/stats` | Memory statistics by category |
+| `/api/memory/health` | Database health check |
 
 ## Features
 
@@ -534,4 +602,4 @@ For questions or feedback, please open an issue on [GitHub](https://github.com/s
 
 ---
 
-**Note**: Agent Communication is functional. Reliability Engineering, Multimodal Pipeline, and Verifiable Outputs are the next planned phases.
+**Note**: Agent Communication and Memory & State Layer are functional. Reliability Engineering, Multimodal Pipeline, and Verifiable Outputs are the next planned phases.
