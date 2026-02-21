@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, History } from "lucide-react";
+import { ArrowLeft, Cloud, History, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConnectionStatus } from "@/components/agent/ConnectionStatus";
 import type { WSStatus } from "@/lib/useWebSocket";
@@ -13,6 +13,8 @@ interface AgentPageHeaderProps {
   showNewRun: boolean;
   onNewRun: () => void;
   onToggleHistory: () => void;
+  onToggleCloud?: () => void;
+  showCloud?: boolean;
 }
 
 export function AgentPageHeader({
@@ -23,6 +25,8 @@ export function AgentPageHeader({
   showNewRun,
   onNewRun,
   onToggleHistory,
+  onToggleCloud,
+  showCloud,
 }: AgentPageHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-6">
@@ -73,6 +77,16 @@ export function AgentPageHeader({
           <Button variant="ghost" size="icon" onClick={onToggleHistory}>
             <History className="h-4 w-4" />
           </Button>
+          {onToggleCloud && (
+            <Button
+              variant={showCloud ? "secondary" : "ghost"}
+              size="icon"
+              onClick={onToggleCloud}
+              title="Cloud Records"
+            >
+              <Cloud className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

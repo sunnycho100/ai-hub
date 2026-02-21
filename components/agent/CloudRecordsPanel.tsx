@@ -1,36 +1,55 @@
-import { Run, RunSource } from "@/lib/types";
+import { Cloud, Trash2, RefreshCw } from "lucide-react";
+import { Run } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cloud, CloudCheck, Trash2 } from "lucide-react";
-import type { CloudSyncStatus } from "@/hooks/useCloudRecords";
+import { Button } from "@/components/ui/button";
 
-interface RunHistoryPanelProps {
-  runs: Run[];
+interface CloudRecordsPanelProps {
+  records: Run[];
+  isFetching: boolean;
+  onRefresh: () => void;
   onLoad: (run: Run) => void;
-  onDelete: (runId: string, source: RunSource) => void;
-  onSaveToCloud?: (run: Run) => void;
-  syncStatus?: Record<string, CloudSyncStatus>;
-  source: RunSource;
+  onDelete: (runId: string) => void;
 }
 
-export function RunHistoryPanel({
-  runs,
+export function CloudRecordsPanel({
+  records,
+  isFetching,
+  onRefresh,
   onLoad,
   onDelete,
-  onSaveToCloud,
-  syncStatus = {},
-  source,
-}: RunHistoryPanelProps) {
+}: CloudRecordsPanelProps) {
   return (
     <Card className="mb-6">
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Run History</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Cloud className="h-4 w-4 text-primary" />
+            Cloud Records
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isFetching}
+            className="flex items-center gap-1.5"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`}
+            />
+            {isFetching ? "Checking…" : "Check Cloud"}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        {runs.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">No past runs.</p>
+        {records.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">
+            {isFetching
+              ? "Fetching cloud records…"
+              : 'No records found in the cloud. Use "Save to Cloud" on any completed run.'}
+          </p>
         ) : (
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {runs.map((run) => (
+            {records.map((run) => (
               <div
                 key={run.id}
                 className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-muted cursor-pointer group"
@@ -43,7 +62,8 @@ export function RunHistoryPanel({
                   <p className="text-xs text-muted-foreground">
                     {run.mode} · {run.messages.length} messages ·{" "}
                     {new Date(run.createdAt).toLocaleDateString()} ·{" "}
-                    {source === "api" ? "API" : "Extension"}
+                    {run.source === "api" ? "API" : "Extension"} ·{" "}
+                    <span className="text-primary">☁ cloud</span>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -58,33 +78,13 @@ export function RunHistoryPanel({
                   >
                     {run.status}
                   </span>
-                  {onSaveToCloud && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSaveToCloud(run);
-                      }}
-                      disabled={syncStatus[run.id] === "saving"}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
-                      title={
-                        syncStatus[run.id] === "saved"
-                          ? "Saved to cloud"
-                          : "Save to cloud"
-                      }
-                    >
-                      {syncStatus[run.id] === "saved" ? (
-                        <CloudCheck className="h-3.5 w-3.5 text-primary" />
-                      ) : (
-                        <Cloud className="h-3.5 w-3.5 text-muted-foreground" />
-                      )}
-                    </button>
-                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(run.id, source);
+                      onDelete(run.id);
                     }}
                     className="opacity-0 group-hover:opacity-100 p-1 hover:bg-accent rounded transition-opacity"
+                    title="Remove from cloud"
                   >
                     <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>

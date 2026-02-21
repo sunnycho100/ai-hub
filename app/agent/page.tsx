@@ -9,11 +9,13 @@ import { Run, RunSource, Round } from "@/lib/types";
 import { useRunHistory } from "@/hooks/useRunHistory";
 import { useExtensionRun } from "@/hooks/useExtensionRun";
 import { useApiRun } from "@/hooks/useApiRun";
+import { useCloudRecords } from "@/hooks/useCloudRecords";
 
 // Components
 import { AgentPageHeader } from "@/components/agent/AgentPageHeader";
 import { ModeTabs } from "@/components/agent/ModeTabs";
 import { RunHistoryPanel } from "@/components/agent/RunHistoryPanel";
+import { CloudRecordsPanel } from "@/components/agent/CloudRecordsPanel";
 import { ExtensionModelPicker } from "@/components/agent/ExtensionModelPicker";
 import { ApiModelSelector } from "@/components/agent/ApiModelSelector";
 import { ErrorBanner } from "@/components/agent/ErrorBanner";
@@ -25,6 +27,7 @@ import { TranscriptTimeline } from "@/components/agent/TranscriptTimeline";
 export default function AgentPage() {
   const { status: wsStatus, send, subscribe } = useWebSocket();
   const [activeTab, setActiveTab] = useState<"extension" | "api">("extension");
+  const [showCloudRecords, setShowCloudRecords] = useState(false);
 
   // Hooks
   const history = useRunHistory();
@@ -35,6 +38,7 @@ export default function AgentPage() {
     wsStatus,
   });
   const api = useApiRun({ refreshRuns: history.refreshRuns });
+  const cloud = useCloudRecords();
 
   // ─── Coordinated handlers ─────────────────────────────
   const handleDeleteRun = (runId: string, source: RunSource) => {
@@ -51,6 +55,23 @@ export default function AgentPage() {
   const handleApiLoadRun = (run: Run) => {
     api.loadRun(run);
     history.setShowApiHistory(false);
+  };
+
+  const handleCloudLoadRun = (run: Run) => {
+    if (run.source === "api") {
+      api.loadRun(run);
+      setActiveTab("api");
+    } else {
+      ext.loadRun(run);
+      setActiveTab("extension");
+    }
+    setShowCloudRecords(false);
+  };
+
+  const handleToggleCloud = () => {
+    const next = !showCloudRecords;
+    setShowCloudRecords(next);
+    if (next) cloud.fetchCloudRecords();
   };
 
   const showNewRun =
@@ -71,7 +92,19 @@ export default function AgentPage() {
             ? history.setShowHistory(!history.showHistory)
             : history.setShowApiHistory(!history.showApiHistory)
         }
+        onToggleCloud={handleToggleCloud}
+        showCloud={showCloudRecords}
       />
+
+      {showCloudRecords && (
+        <CloudRecordsPanel
+          records={cloud.cloudRecords}
+          isFetching={cloud.isFetching}
+          onRefresh={cloud.fetchCloudRecords}
+          onLoad={handleCloudLoadRun}
+          onDelete={cloud.removeFromCloud}
+        />
+      )}
 
       <ModeTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -88,6 +121,8 @@ export default function AgentPage() {
               runs={history.extensionRuns}
               onLoad={handleExtLoadRun}
               onDelete={handleDeleteRun}
+              onSaveToCloud={cloud.saveToCloud}
+              syncStatus={cloud.syncStatus}
               source="extension"
             />
           )}
@@ -166,6 +201,8 @@ export default function AgentPage() {
               runs={history.apiRuns}
               onLoad={handleApiLoadRun}
               onDelete={handleDeleteRun}
+              onSaveToCloud={cloud.saveToCloud}
+              syncStatus={cloud.syncStatus}
               source="api"
             />
           )}
@@ -229,3 +266,4 @@ export default function AgentPage() {
     </div>
   );
 }
+
