@@ -97,6 +97,7 @@ var currentRound = null;
 var observer = null;
 var responseCheckInterval = null;
 var responseTimeoutHandle = null;
+var _activeCheckFn = null; // Reference to the current checkForResponse function
 
 // --- Debug overlay ---
 
@@ -162,6 +163,15 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     currentRound = msg.round;
     handleSendPrompt(msg);
     sendResponse({ ok: true });
+  }
+  if (msg.type === "NUDGE_CHECK") {
+    // Background service worker is nudging us to check for a response.
+    // This overcomes Chrome's timer throttling in background tabs.
+    if (_activeCheckFn) {
+      console.log("[" + PROVIDER + "] nudge received, checking for response...");
+      _activeCheckFn();
+    }
+    sendResponse({ ok: true, waiting: !!_activeCheckFn });
   }
   return true;
 });
@@ -701,6 +711,7 @@ function startResponseObserver() {
       clearTimeout(responseTimeoutHandle);
       responseTimeoutHandle = null;
     }
+    _activeCheckFn = null;
     return true;
   };
 
@@ -720,6 +731,9 @@ function startResponseObserver() {
 
   responseCheckInterval = setInterval(checkForResponse, 2000);
 
+  // Expose for background nudge mechanism
+  _activeCheckFn = checkForResponse;
+
   responseTimeoutHandle = setTimeout(function () {
     var stillWaiting = !!responseCheckInterval || !!observer;
     if (!stillWaiting) {
@@ -735,6 +749,7 @@ function startResponseObserver() {
       observer = null;
     }
     responseTimeoutHandle = null;
+    _activeCheckFn = null;
     emitError(
       "RESPONSE_TIMEOUT",
       "Timed out waiting for response after 5min"

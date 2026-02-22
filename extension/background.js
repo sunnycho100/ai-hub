@@ -352,6 +352,25 @@ function broadcastStatus() {
 
 // ─── Keepalive (prevents MV3 service worker termination) ──
 
+/**
+ * Nudge all registered provider tabs to check for responses.
+ * Content scripts' setInterval may be throttled by Chrome in background tabs,
+ * but messages from the background service worker are delivered immediately.
+ */
+function nudgeProviderTabs() {
+  for (const [provider, info] of tabRegistry.entries()) {
+    chrome.tabs.sendMessage(info.tabId, { type: "NUDGE_CHECK" }, (response) => {
+      if (chrome.runtime.lastError) {
+        // Content script not reachable — ignore silently
+        return;
+      }
+      if (response && response.waiting) {
+        console.log("[bg] nudge: " + provider + " is waiting for response");
+      }
+    });
+  }
+}
+
 // Chrome terminates MV3 service workers after ~30s of inactivity,
 // killing WebSocket connections. Alarms keep it alive.
 // Use delayInMinutes for FIRST alarm to fire quickly after extension loads
@@ -363,6 +382,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       console.log("[bg] keepalive: reconnecting WS...");
       connectWS();
     }
+    // Nudge all registered provider tabs to check for responses.
+    // This overcomes Chrome's timer throttling in background tabs,
+    // where setInterval may be throttled to once/minute after 5 min.
+    nudgeProviderTabs();
   }
 });
 
