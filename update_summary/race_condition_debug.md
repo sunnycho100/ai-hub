@@ -209,3 +209,61 @@ The pipeline now enforces transport truth before orchestration:
 ### Important Note
 
 - Run the app from the worktree that contains these patches so the browser loads the updated bundle.
+
+---
+
+## Response Scraping Fix (Post-WS-hardening)
+
+After the WebSocket reliability fixes above, a new class of failure surfaced: prompts were being sent successfully, but **responses were not being scraped correctly** from provider tabs.
+
+### Symptoms
+
+- **ChatGPT**: Only bold text (`<strong>` tag contents) was returned instead of the full response. Example: a multi-paragraph response about US-China military comparison returned only `"United StatesChina NATO Japan Self-Defense Forces..."` (concatenated bold fragments).
+- **Gemini**: Responses were not fetched at all. The scraper would poll indefinitely, never detecting a completed response. Rounds could not advance.
+- **Claude**: Working correctly (no changes needed).
+
+### Root Causes
+
+#### ChatGPT — Over-aggressive noise removal
+
+`NOISE_SELECTORS` in `chatgpt.js` contained:
+- `[class*="thought"]` — Matched ChatGPT's reasoning-model response containers (class names like `thought-*`), stripping all `<p>` elements and leaving only orphaned `<strong>` tags.
+- `details`, `summary` — Bare element selectors that could match structural response elements.
+- `a[class*="group"]` — Matched link wrappers inside response content.
+
+After cloning the response DOM and running noise removal, the entire response body was deleted, leaving only inline bold text fragments.
+
+#### Gemini — Three compounding failures
+
+1. **In-place DOM mutation not detected**: The scraper relied on `messages.length > lastMessageCount` to detect new responses. Gemini updates responses by mutating the existing `model-response` node in place — no new DOM nodes are added, so the count never increases. The scraper waited forever.
+
+2. **Global thinking detection**: `document.querySelector(THINKING_SELECTORS[ti])` searched the **entire page** for thinking indicators. Unrelated spinners, loading bars, and progress elements elsewhere in Gemini's UI matched, keeping `isThinking = true` permanently and blocking completion.
+
+3. **Wildcard loading checks**: `[class*="loading"], [class*="spinner"], [class*="progress"], [class*="shimmer"]` matched permanent Gemini UI elements (not just streaming indicators), reinforcing the false `isThinking` state.
+
+### Fixes Applied
+
+#### ChatGPT (`extension/providers/chatgpt.js`)
+
+| Change | Before | After |
+|--------|--------|-------|
+| `NOISE_SELECTORS` | 12 entries including `[class*="thought"]`, `details`, `summary`, `a[class*="group"]` | 10 entries; removed 4 over-aggressive selectors; added `[data-testid*="thought"]`, `[data-testid*="thinking"]` |
+| `extractMessageText()` | No safety check on noise removal | Added 70% sanity threshold: if cleaned text is <30% of raw text, bypass noise removal and return regex-cleaned raw text |
+| Polling interval | 2000ms | 1200ms |
+
+#### Gemini (`extension/providers/gemini.js`)
+
+| Change | Before | After |
+|--------|--------|-------|
+| Message detection | `messages.length <= lastMessageCount` → return false | Allow processing when message count unchanged but text content >= 20 chars (in-place update detection) |
+| Thinking detection | `document.querySelector()` (global) | Scoped to `latestMsg` and parent `model-response` only |
+| Loading detection | `[class*="loading"], [class*="spinner"], etc.` (broad wildcards) | `.loading-indicator, mat-spinner, circular-progress, thinking-content` (specific selectors) |
+| Done signal | Generic STREAMING_DONE_SELECTORS only | Added `message-actions` as explicit done signal; added stop button override |
+| Required stable polls | `hasDoneSignal ? 1 : 3` | `hasDoneSignal ? 1 : 2` |
+| Polling interval | 2000ms | 1000ms |
+| State tracking | `lastMessageCount` only | Added `baselineLastText` to detect genuinely new in-place content |
+
+### Why This Resolves the Observed Symptoms
+
+- **ChatGPT**: Narrow noise selectors no longer strip response containers. The 70% sanity check provides a safety net even if future DOM changes introduce new class names containing "thought".
+- **Gemini**: In-place update detection + scoped thinking/loading checks eliminate both failure modes. The scraper now correctly detects content appearing in mutated DOM nodes and correctly identifies when streaming is complete vs. when unrelated UI elements are loading.

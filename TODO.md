@@ -209,6 +209,19 @@ Each section represents a milestone suitable for a standalone Git commit.
 ## Implementation History
 
 ### Completed
+- ✅ Chat UI Redesign + Round-Sync Fix (v0.3.0)
+  - Replaced card grid with chatbox-style conversation UI (ChatThread, ConversationTabs, ChatInput)
+  - Fixed stale response capture across all three providers (prefix+length stale guard, 2s post-send cooldown)
+  - Claude response speed improved (RESPONSE_DONE_SELECTORS, faster stable-poll threshold)
+  - See KNOWN_ISSUES.md for tracked remaining problems
+- ✅ Milestones 18–19: Memory & State Layer (v0.2.6)
+  - PostgreSQL + pgvector schema (6 tables, vector(1536) embeddings)
+  - Short-term buffer + long-term store with bi-temporal versioning
+  - LLM-powered consolidation engine (gpt-4o-mini, idle detection)
+  - Markdown memory file system (per-category, auto-regenerated)
+  - 8 API routes (/api/memory/*), context injection into agent prompts
+  - Memory dashboard UI with search, stats, file viewer
+  - useMemory hook, useApiRun integration for automatic capture
 - ✅ Milestone 8 (partial): Pipeline Debugging & Fixes (v0.0.6)
   - Root cause: stale selectors + silent error swallowing + no tab validation
   - Content scripts v2: 8+ fallback selectors, 5-strategy paste, debug overlay

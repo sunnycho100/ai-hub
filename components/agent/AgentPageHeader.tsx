@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, MessageSquare, History } from "lucide-react";
+import { ArrowLeft, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConnectionStatus } from "@/components/agent/ConnectionStatus";
 import type { WSStatus } from "@/lib/useWebSocket";
@@ -10,9 +10,9 @@ interface AgentPageHeaderProps {
   wsStatus: WSStatus;
   connectedProviders: Provider[];
   extensionReady?: boolean;
-  showNewRun: boolean;
-  onNewRun: () => void;
-  onToggleHistory: () => void;
+  showNewRun?: boolean;
+  onNewRun?: () => void;
+  onToggleHistory?: () => void;
 }
 
 export function AgentPageHeader({
@@ -20,39 +20,34 @@ export function AgentPageHeader({
   wsStatus,
   connectedProviders,
   extensionReady,
-  showNewRun,
-  onNewRun,
-  onToggleHistory,
 }: AgentPageHeaderProps) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex items-center gap-4">
+    <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center gap-3">
         <Button asChild variant="ghost" size="sm">
           <Link href="/" className="flex items-center">
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
             Back
           </Link>
         </Button>
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-muted border border-input flex items-center justify-center">
-            <MessageSquare className="h-5 w-5 text-primary" />
+        <div className="flex items-center gap-2.5">
+          <div className="h-9 w-9 rounded-xl bg-muted border border-input flex items-center justify-center">
+            <MessageSquare className="h-4.5 w-4.5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">
-              {activeTab === "api"
-                ? "Agent Communication (API)"
-                : "Agent Communication"}
+            <h1 className="text-lg font-bold text-foreground leading-tight">
+              Agent Communication
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {activeTab === "api"
-                ? "API-based, turn-taking multi-model discussion"
-                : "Multi-model debate and collaboration"}
+                ? "API-based multi-model discussion"
+                : "Multi-model debate & collaboration"}
             </p>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {activeTab === "extension" ? (
           <ConnectionStatus
             wsStatus={wsStatus}
@@ -60,20 +55,10 @@ export function AgentPageHeader({
             extensionReady={extensionReady}
           />
         ) : (
-          <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+          <span className="text-[11px] px-2 py-1 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
             API Mode
           </span>
         )}
-        <div className="flex items-center gap-2">
-          {showNewRun && (
-            <Button variant="outline" size="sm" onClick={onNewRun}>
-              New Run
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" onClick={onToggleHistory}>
-            <History className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
     </div>
   );

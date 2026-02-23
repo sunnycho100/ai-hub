@@ -91,6 +91,8 @@ var THINKING_SELECTORS = [
 ];
 
 var lastMessageCount = 0;
+var lastCapturedText = "";
+var promptSentAt = 0;
 var assistantSelectorInUse = ASSISTANT_SELECTORS[0];
 var currentRunId = null;
 var currentRound = null;
@@ -551,6 +553,7 @@ async function handleSendPrompt(msg) {
     });
 
     showDebug("Round " + msg.round + ": Sent! Waiting for response...");
+    promptSentAt = Date.now();
     startResponseObserver();
   } catch (err) {
     emitError("SEND_EXCEPTION", err.message, err.stack);
@@ -569,42 +572,65 @@ function startResponseObserver() {
   }
 
   var checkForResponse = function () {
+    // Ignore responses during the post-send cooldown (2 seconds)
+    if (promptSentAt && (Date.now() - promptSentAt) < 2000) return false;
+
     var snapshot = getAssistantMessages(assistantSelectorInUse);
     assistantSelectorInUse = snapshot.selector;
     var messages = snapshot.nodes;
     console.log("[" + PROVIDER + "] poll: " + messages.length + " response elements, lastCount=" + lastMessageCount + ", selector=" + assistantSelectorInUse);
 
-    if (!messages.length || messages.length <= lastMessageCount) return false;
+    if (!messages.length) return false;
+
     var latestMsg = messages[messages.length - 1];
 
-    // Check if Gemini is still in "thinking" phase
-    // Thinking models (like Gemini 2.5 Pro) show a thinking indicator before actual response
+    // Gemini often updates responses in-place without adding new DOM nodes.
+    // If message count hasn't increased, check whether text content has appeared.
+    if (messages.length <= lastMessageCount) {
+      var earlyText = extractMessageText(latestMsg);
+      if (!earlyText || earlyText.length < 20) return false;
+      console.log("[" + PROVIDER + "] in-place update detected (" + earlyText.length + " chars)");
+    }
+
+    // Check if Gemini is still in "thinking" phase.
+    // IMPORTANT: Scope detection to the current response container only.
+    // Global document-level checks latch onto unrelated spinners/loading
+    // elements elsewhere on the page and block completion forever.
     var isThinking = false;
+    var responseContainer = latestMsg.closest('model-response') || latestMsg;
+    var thinkingRoots = [latestMsg];
+    if (responseContainer && responseContainer !== latestMsg) {
+      thinkingRoots.push(responseContainer);
+    }
+
     for (var ti = 0; ti < THINKING_SELECTORS.length; ti++) {
       try {
-        if (latestMsg.querySelector(THINKING_SELECTORS[ti]) || document.querySelector(THINKING_SELECTORS[ti])) {
-          isThinking = true;
-          console.log("[" + PROVIDER + "] thinking phase detected: " + THINKING_SELECTORS[ti]);
-          break;
+        for (var tr = 0; tr < thinkingRoots.length; tr++) {
+          if (thinkingRoots[tr].querySelector(THINKING_SELECTORS[ti])) {
+            isThinking = true;
+            console.log("[" + PROVIDER + "] thinking phase detected: " + THINKING_SELECTORS[ti]);
+            break;
+          }
         }
+        if (isThinking) break;
       } catch (e) { /* skip */ }
     }
 
-    // Also detect thinking by checking if the response area is still loading
-    // (shimmer/skeleton UI or progress indicator visible in the response container)
+    // Scoped loading check — only match specific loading indicators inside
+    // the current response container, not broad class wildcards
     if (!isThinking) {
       try {
-        var responseContainer = latestMsg.closest('model-response') || latestMsg;
-        var loadingEls = responseContainer.querySelectorAll('[class*="loading"], [class*="spinner"], [class*="progress"], [class*="shimmer"]');
+        var loadingEls = responseContainer.querySelectorAll(
+          '.loading-indicator, mat-spinner, circular-progress, thinking-content'
+        );
         if (loadingEls.length > 0) {
           isThinking = true;
-          console.log("[" + PROVIDER + "] loading/shimmer detected in response container");
+          console.log("[" + PROVIDER + "] scoped loading indicator detected");
         }
       } catch (e) { /* skip */ }
     }
 
     if (isThinking) {
-      // Reset stability tracking during thinking phase
       latestMsg._lastTextLen = undefined;
       latestMsg._stableCount = 0;
       return false;
@@ -616,7 +642,18 @@ function startResponseObserver() {
       return false;
     }
 
-    // Ignore known placeholder-only text, but allow legitimate short answers.
+    // Guard against stale re-reads from earlier rounds.
+    // Use prefix + length similarity instead of strict equality to handle
+    // minor whitespace/formatting differences between polls.
+    if (lastCapturedText) {
+      var prefixLen = Math.min(200, lastCapturedText.length, text.length);
+      var samePrefix = text.substring(0, prefixLen) === lastCapturedText.substring(0, prefixLen);
+      var lenRatio = text.length / lastCapturedText.length;
+      if (samePrefix && lenRatio > 0.9 && lenRatio < 1.1) {
+        return false;
+      }
+    }
+
     var normalized = text.trim().toLowerCase();
     var looksPlaceholder =
       normalized === "gemini said" ||
@@ -666,8 +703,17 @@ function startResponseObserver() {
     }
     latestMsg._stableCount = (latestMsg._stableCount || 0) + 1;
 
-    // If we have a done signal, only need 1 stable poll; otherwise need 3
-    var requiredStable = hasDoneSignal ? 1 : 3;
+    // If a stop/cancel button is visible, Gemini is still streaming — override done signal
+    var hasStopButton = false;
+    try {
+      hasStopButton = !!responseContainer.querySelector('button[aria-label*="Stop"]') ||
+                      !!responseContainer.querySelector('button[aria-label*="Cancel"]');
+    } catch (e) { /* skip */ }
+    if (hasStopButton) {
+      hasDoneSignal = false;
+    }
+
+    var requiredStable = hasDoneSignal ? 1 : 2;
     if (latestMsg._stableCount < requiredStable) {
       console.log("[" + PROVIDER + "] stability: " + latestMsg._stableCount + "/" + requiredStable + (hasDoneSignal ? " (done signal found)" : " (no done signal, using stability only)"));
       return false;
@@ -689,6 +735,7 @@ function startResponseObserver() {
       "Round " + currentRound + ": Got response (" + text.length + " chars)"
     );
     lastMessageCount = messages.length;
+    lastCapturedText = text;
     if (observer) {
       observer.disconnect();
       observer = null;
@@ -718,7 +765,7 @@ function startResponseObserver() {
     console.warn("[" + PROVIDER + "] MutationObserver failed:", e);
   }
 
-  responseCheckInterval = setInterval(checkForResponse, 2000);
+  responseCheckInterval = setInterval(checkForResponse, 1000);
 
   responseTimeoutHandle = setTimeout(function () {
     var stillWaiting = !!responseCheckInterval || !!observer;

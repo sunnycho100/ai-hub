@@ -66,11 +66,7 @@ function connectWS() {
 
     // Re-discover content script tabs (in case service worker restarted and lost registry)
     // Track completion so we can send an updated EXTENSION_READY after all tabs are pinged
-    // Also re-inject content scripts to catch already-open tabs that may have lost their scripts
-    reinjectContentScripts().then(() => {
-      // After re-injection completes, discover tabs to build registry
-      discoverTabs();
-    });
+    discoverTabs();
   };
 
   ws.onmessage = (event) => {
@@ -408,12 +404,9 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  console.log("[bg] Chrome started – connecting WS + re-injecting content scripts");
+  console.log("[bg] Chrome started – connecting WS");
   connectWS();
-  reinjectContentScripts();
 });
 
 console.log("[bg] AI Hub extension starting...");
-// Re-inject content scripts into any already-open provider tabs
-reinjectContentScripts();
 connectWS();

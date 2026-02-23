@@ -13,6 +13,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.3.0] - 2026-02-23 - Chat UI redesign and robust round-sync scraping fix
+
+### Added
+- **Chat-style conversation UI** — Complete redesign of the Agent Communication page from card grid to chatbox layout
+  - `components/agent/ChatThread.tsx` — Scrollable chat thread displaying all AI responses chronologically with provider avatars, round dividers, and full untruncated message text. Auto-scrolls to newest message. Shows typing indicators (bouncing dots) for providers currently generating.
+  - `components/agent/ConversationTabs.tsx` — Horizontal tab bar for conversation history. Each past run appears as a clickable tab with status dot (green/red/pulsing) and truncated topic. "+" button to start a new conversation. Tabs have close-on-hover.
+  - `components/agent/ChatInput.tsx` — Bottom-pinned input bar with auto-resizing textarea, Debate/Collab mode toggle, Send/Stop button, and inline status indicator. Supports Enter-to-send.
+- **Conversation preservation** — Users can switch between past and current conversations via tabs without losing any history. Starting a new prompt opens a new conversation tab automatically.
+
+### Changed
+- **`app/agent/page.tsx`** — Rewired from scrollable card layout to fixed-height flex column: compact header → mode tabs → conversation tabs → chat thread (fills remaining viewport) → pinned chat input. Replaced `AgentPanel` grid and `TranscriptTimeline` with unified `ChatThread`.
+- **`components/agent/AgentPageHeader.tsx`** — Simplified; removed redundant "New Run" button and "History" toggle (both now handled by ConversationTabs).
+- **`components/layout/LiquidTabWrapper.tsx`** — No functional changes; intermediate height propagation experiments reverted.
+
+### Fixed
+- **Round synchronization — stale round 1 text captured as round 2/3 answers** (all three providers)
+  - Root cause: strict `text === lastCapturedText` equality failed when extracted text had minor whitespace or formatting differences between polls, allowing the old response to slip through as a "new" answer.
+  - Fix 1: Replaced strict equality with **prefix + length similarity check** — if the first 200 characters match AND total lengths are within 10% of each other, the text is considered stale and rejected. Handles minor DOM re-render drift.
+  - Fix 2: Added **2-second post-send cooldown** — after `PROMPT_SENT`, the scraper ignores all response readings for 2 seconds, giving the AI model time to start generating a genuinely new response before the old text can be grabbed.
+  - Fix 3: Added `lastCapturedText` tracking to Gemini (previously only ChatGPT and Claude had it).
+- **Claude slow response detection** — Added `RESPONSE_DONE_SELECTORS` for positive completion signals (copy/retry/thumbs buttons). Reduced stability threshold from 2 to 1 when done signal is detected. Reduced polling interval from 2000ms to 1000ms.
+
+### Technical Details
+- **Stale guard**: `var prefixLen = Math.min(200, lastCapturedText.length, text.length); var samePrefix = text.substring(0, prefixLen) === lastCapturedText.substring(0, prefixLen); var lenRatio = text.length / lastCapturedText.length;` — rejects if `samePrefix && lenRatio > 0.9 && lenRatio < 1.1`.
+- **Cooldown**: `var promptSentAt = 0;` set to `Date.now()` in `handleSendPrompt`, checked as `if (promptSentAt && (Date.now() - promptSentAt) < 2000) return false;` at the top of `checkForResponse`.
+- **Chat UI architecture**: Page uses `height: calc(100vh - 3.5rem)` flex column. ChatThread has `flex-1 overflow-y-auto min-h-0` for proper scroll containment. Messages sorted chronologically with `useMemo`. Round breaks computed via pre-pass `Set<number>` to avoid mutable variables in render.
+
+### Files Modified
+- `extension/providers/chatgpt.js` — `promptSentAt`, cooldown check, prefix+length stale guard
+- `extension/providers/gemini.js` — `promptSentAt`, `lastCapturedText`, cooldown check, prefix+length stale guard
+- `extension/providers/claude.js` — `promptSentAt`, cooldown check, prefix+length stale guard, `RESPONSE_DONE_SELECTORS`, `hasDoneSignal` logic
+- `components/agent/ChatThread.tsx` (new)
+- `components/agent/ConversationTabs.tsx` (new)
+- `components/agent/ChatInput.tsx` (new)
+- `app/agent/page.tsx` (rewritten)
+- `components/agent/AgentPageHeader.tsx` (simplified)
+
+---
+
+## [0.2.6] - 2026-02-22 - Fix ChatGPT and Gemini response scraping in extension mode
+
+### Fixed
+- **ChatGPT returning only bold text instead of full response**
+  - Root cause: `NOISE_SELECTORS` in `extension/providers/chatgpt.js` included `[class*="thought"]`, bare `details`, bare `summary`, and `a[class*="group"]`. ChatGPT's reasoning-model DOM wraps response paragraphs inside containers whose class names contain "thought". The noise removal stripped all `<p>` elements, leaving only orphaned `<strong>` tag contents (bold text).
+  - Fix: Replaced broad class wildcards (`[class*="thought"]`, `details`, `summary`, `a[class*="group"]`) with narrow data-testid selectors (`[data-testid*="thought"]`, `[data-testid*="thinking"]`).
+  - Added sanity check: if noise removal strips >70% of the raw text, fall back to regex-only cleaned text instead.
+- **Gemini responses not being fetched at all**
+  - Root cause 1: `messages.length <= lastMessageCount` gate blocked processing because Gemini updates responses **in-place** (mutates the existing DOM node) without adding new child nodes — the message count never increases.
+  - Root cause 2: `document.querySelector(THINKING_SELECTORS[ti])` was a **global** check that matched unrelated spinners/loading elements elsewhere on the page, keeping `isThinking = true` indefinitely and blocking completion.
+  - Root cause 3: `[class*="loading"], [class*="progress"], [class*="shimmer"]` wildcard class checks in the secondary loading detection matched permanent Gemini UI elements, not just streaming indicators.
+  - Fix: Added in-place update detection — when message count hasn't increased, extract text from the latest node and allow processing if meaningful content (>=20 chars) is present. Track `baselineLastText` to distinguish genuinely new in-place content from stale text.
+  - Fix: Scoped thinking/loading detection to the current `model-response` container only (no more `document.querySelector`). Replaced wildcard class checks with specific selectors (`.loading-indicator`, `mat-spinner`, `circular-progress`, `thinking-content`).
+  - Fix: Added stop button override — if a Stop/Cancel button is visible inside the response container, `hasDoneSignal` is forced to false (still streaming). Added `message-actions` as an explicit done signal.
+
+### Changed
+- **`extension/providers/chatgpt.js`**
+  - Narrowed `NOISE_SELECTORS` from 12 entries to 10, removing 4 over-aggressive selectors
+  - Added 70% sanity threshold in `extractMessageText()` to detect and bypass over-aggressive noise removal
+  - Reduced polling interval from 2000ms to 1200ms for faster response detection
+- **`extension/providers/gemini.js`**
+  - Added `baselineLastText` variable to track last extracted text for in-place update comparison
+  - Rewrote message detection to allow in-place DOM mutations (no longer requires `messages.length > lastMessageCount`)
+  - Scoped all thinking/loading detection to `latestMsg` and its parent `model-response` container
+  - Replaced broad `[class*="loading"]` wildcards with specific element selectors
+  - Added stop button detection to override premature done signals
+  - Added `message-actions` as explicit completion indicator
+  - Reduced required stable polls from 3 to 2 (without done signal) and 1 (with done signal)
+  - Reduced polling interval from 2000ms to 1000ms
+
+### Technical Details
+- ChatGPT's reasoning models (o-series) wrap response content in DOM containers with class names like `thought-*`. The previous `[class*="thought"]` noise selector inadvertently matched and removed these containers, stripping all paragraph text and leaving only inline `<strong>` elements.
+- Gemini's web app architecture renders responses by mutating an existing `model-response` element rather than appending new DOM nodes. The previous scraper relied on `messages.length > lastMessageCount` which never triggered, causing an infinite wait.
+- Both providers had overly broad loading/thinking detection that could latch onto unrelated UI elements on the page, causing the scraper to wait indefinitely.
+
+---
+
 ## [0.2.5] - 2026-02-16 - Harden extension-mode WS reliability and start gating
 
 ### Fixed
