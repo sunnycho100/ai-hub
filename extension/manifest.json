@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Hub – Agent Bridge",
   "version": "0.1.0",
-  "description": "Bridges AI Hub orchestrator with ChatGPT and Gemini tabs for automated multi-agent conversations.",
+  "description": "Bridges AI Hub orchestrator with ChatGPT, Gemini, and Claude tabs for automated multi-agent conversations.",
 
   "permissions": [
     "activeTab",

@@ -54,6 +54,8 @@ var RESPONSE_DONE_SELECTORS = [
 ];
 
 var lastMessageCount = 0;
+var lastCapturedText = "";
+var promptSentAt = 0;
 var assistantSelectorInUse = ASSISTANT_SELECTORS[0];
 var currentRunId = null;
 var currentRound = null;
@@ -181,25 +183,20 @@ function getAssistantMessages(preferredSelector) {
   return { selector: selectors[0] || ASSISTANT_SELECTORS[0], nodes: [] };
 }
 
-// Selectors for elements to REMOVE before extracting text
-// These capture search results, sources, citations, thinking/searching metadata
+// Selectors for elements to REMOVE before extracting text.
+// IMPORTANT: Keep these narrow. Broad wildcards like [class*="thought"] or
+// bare 'details' can accidentally strip the actual response paragraphs in
+// ChatGPT's reasoning-model DOM, leaving only orphaned <strong> tags.
 var NOISE_SELECTORS = [
-  // Sources / citations section
   '[class*="sources"]',
   '[class*="citation"]',
   '[data-testid*="source"]',
   '[data-testid*="citation"]',
-  // Search result cards / web results
   '[class*="search-result"]',
   '[class*="web-result"]',
   '[class*="SearchResult"]',
-  // Thinking / searching collapsible sections
-  '[class*="thought"]',
-  'details',
-  'summary',
-  // Link preview cards with favicons/metadata
-  'a[class*="group"]',
-  // Toolbar / action buttons inside the markdown
+  '[data-testid*="thought"]',
+  '[data-testid*="thinking"]',
   '[class*="toolbar"]',
 ];
 
@@ -234,7 +231,6 @@ function cleanExtractedText(rawText) {
 function extractMessageText(messageEl) {
   if (!messageEl) return "";
 
-  // Try to find the main markdown content first
   for (var i = 0; i < MESSAGE_TEXT_SELECTORS.length; i++) {
     try {
       var textEl = null;
@@ -245,10 +241,9 @@ function extractMessageText(messageEl) {
       }
 
       if (textEl) {
-        // Clone to avoid modifying actual DOM
-        var clone = textEl.cloneNode(true);
+        var rawText = cleanExtractedText(textEl.innerText || textEl.textContent || "");
 
-        // Remove noise elements from the clone
+        var clone = textEl.cloneNode(true);
         for (var n = 0; n < NOISE_SELECTORS.length; n++) {
           try {
             var noiseEls = clone.querySelectorAll(NOISE_SELECTORS[n]);
@@ -257,11 +252,24 @@ function extractMessageText(messageEl) {
             }
           } catch (e) { /* skip invalid selector */ }
         }
+        var cleanedText = cleanExtractedText(clone.innerText || clone.textContent || "");
 
-        var text = cleanExtractedText(clone.innerText || clone.textContent || "");
-        if (text) {
-          console.log("[" + PROVIDER + "] text extracted with: " + MESSAGE_TEXT_SELECTORS[i] + " (" + text.length + " chars)");
-          return text;
+        // Sanity check: if noise removal stripped >70% of text, the selectors
+        // are over-aggressive (e.g. matching response containers). Fall back
+        // to the raw text which is cleaned via regex only.
+        if (rawText && cleanedText && cleanedText.length < rawText.length * 0.3) {
+          console.log("[" + PROVIDER + "] noise removal too aggressive (" + cleanedText.length + "/" + rawText.length + " chars), using raw text");
+          return rawText;
+        }
+
+        if (cleanedText) {
+          console.log("[" + PROVIDER + "] text extracted with: " + MESSAGE_TEXT_SELECTORS[i] + " (" + cleanedText.length + " chars)");
+          return cleanedText;
+        }
+
+        if (rawText) {
+          console.log("[" + PROVIDER + "] cleaned text empty, using raw (" + rawText.length + " chars)");
+          return rawText;
         }
       }
     } catch (e) {
@@ -269,7 +277,6 @@ function extractMessageText(messageEl) {
     }
   }
 
-  // Fallback: use innerText with cleanup
   var fallback = cleanExtractedText(messageEl.innerText || messageEl.textContent || "");
   if (fallback) {
     console.log("[" + PROVIDER + "] text extracted via fallback (" + fallback.length + " chars)");
@@ -524,6 +531,7 @@ async function handleSendPrompt(msg) {
 
     console.log("[" + PROVIDER + "] prompt sent for round " + msg.round);
     showDebug("Round " + msg.round + ": Sent! Waiting for response...");
+    promptSentAt = Date.now();
 
     // Start watching for the response
     startResponseObserver();
@@ -544,6 +552,9 @@ function startResponseObserver() {
   }
 
   var checkForResponse = function () {
+    // Ignore responses during the post-send cooldown (2 seconds)
+    if (promptSentAt && (Date.now() - promptSentAt) < 2000) return false;
+
     var snapshot = getAssistantMessages(assistantSelectorInUse);
     assistantSelectorInUse = snapshot.selector;
     var messages = snapshot.nodes;
@@ -553,6 +564,18 @@ function startResponseObserver() {
     var latestMsg = messages[messages.length - 1];
     var text = extractMessageText(latestMsg);
     if (text.length === 0) return false;
+
+    // Guard against stale re-reads from earlier rounds.
+    // Use prefix + length similarity instead of strict equality to handle
+    // minor whitespace/formatting differences between polls.
+    if (lastCapturedText) {
+      var prefixLen = Math.min(200, lastCapturedText.length, text.length);
+      var samePrefix = text.substring(0, prefixLen) === lastCapturedText.substring(0, prefixLen);
+      var lenRatio = text.length / lastCapturedText.length;
+      if (samePrefix && lenRatio > 0.9 && lenRatio < 1.1) {
+        return false;
+      }
+    }
 
     // Check if still streaming (negative signals)
     var isStreaming =
@@ -622,6 +645,7 @@ function startResponseObserver() {
       "Round " + currentRound + ": Got response (" + text.length + " chars)"
     );
     lastMessageCount = messages.length;
+    lastCapturedText = text;
 
     if (observer) {
       observer.disconnect();
@@ -654,8 +678,7 @@ function startResponseObserver() {
     console.warn("[" + PROVIDER + "] MutationObserver failed:", e);
   }
 
-  // Polling fallback
-  responseCheckInterval = setInterval(checkForResponse, 2000);
+  responseCheckInterval = setInterval(checkForResponse, 1200);
 
   // Expose for background nudge mechanism
   _activeCheckFn = checkForResponse;

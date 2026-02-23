@@ -53,7 +53,20 @@ var STREAMING_ACTIVE_SELECTORS = [
   'button[aria-label*="stop"]',
 ];
 
+// Positive signals that response generation is complete
+var RESPONSE_DONE_SELECTORS = [
+  'button[aria-label="Copy"]',
+  'button[aria-label*="Copy"]',
+  'button[aria-label*="Retry"]',
+  'button[aria-label*="Good"]',
+  'button[aria-label*="Bad"]',
+  'button[aria-label*="thumbs"]',
+  '[data-testid="copy-button"]',
+];
+
 var lastMessageCount = 0;
+var lastCapturedText = "";
+var promptSentAt = 0;
 var assistantSelectorInUse = ASSISTANT_SELECTORS[0];
 var currentRunId = null;
 var currentRound = null;
@@ -507,6 +520,7 @@ async function handleSendPrompt(msg) {
 
     console.log("[" + PROVIDER + "] prompt sent for round " + msg.round);
     showDebug("Round " + msg.round + ": Sent! Waiting for response...");
+    promptSentAt = Date.now();
 
     // Reset stability tracking
     lastResponseText = "";
@@ -531,6 +545,9 @@ function startResponseObserver() {
   }
 
   var checkForResponse = function () {
+    // Ignore responses during the post-send cooldown (2 seconds)
+    if (promptSentAt && (Date.now() - promptSentAt) < 2000) return false;
+
     var snapshot = getAssistantMessages(assistantSelectorInUse);
     assistantSelectorInUse = snapshot.selector;
     var messages = snapshot.nodes;
@@ -540,6 +557,18 @@ function startResponseObserver() {
     var latestMsg = messages[messages.length - 1];
     var text = extractMessageText(latestMsg);
     if (text.length === 0) return false;
+
+    // Guard against stale re-reads from earlier rounds.
+    // Use prefix + length similarity instead of strict equality to handle
+    // minor whitespace/formatting differences between polls.
+    if (lastCapturedText) {
+      var prefixLen = Math.min(200, lastCapturedText.length, text.length);
+      var samePrefix = text.substring(0, prefixLen) === lastCapturedText.substring(0, prefixLen);
+      var lenRatio = text.length / lastCapturedText.length;
+      if (samePrefix && lenRatio > 0.9 && lenRatio < 1.1) {
+        return false;
+      }
+    }
 
     // Check if Claude is actively streaming via stop button
     var isStreaming = false;
@@ -555,13 +584,25 @@ function startResponseObserver() {
     }
 
     if (isStreaming) {
-      // Reset stability when streaming is active
       lastResponseText = text;
       stableTextCount = 0;
       return false;
     }
 
-    // Text stability check: if text hasn't changed for 3 consecutive checks, consider it done
+    // Check for positive done signals (copy/retry/thumbs buttons)
+    var hasDoneSignal = false;
+    var turnContainer = latestMsg.closest('[data-test-render-count]') || latestMsg;
+    for (var di = 0; di < RESPONSE_DONE_SELECTORS.length; di++) {
+      try {
+        if (turnContainer.querySelector(RESPONSE_DONE_SELECTORS[di]) ||
+            latestMsg.querySelector(RESPONSE_DONE_SELECTORS[di])) {
+          hasDoneSignal = true;
+          break;
+        }
+      } catch (e) { /* skip */ }
+    }
+
+    // Text stability check
     if (text === lastResponseText) {
       stableTextCount++;
     } else {
@@ -570,8 +611,8 @@ function startResponseObserver() {
       return false;
     }
 
-    // Require text to be stable for at least 2 checks (~4 seconds with 2s interval)
-    if (stableTextCount < 2) return false;
+    var requiredStable = hasDoneSignal ? 1 : 2;
+    if (stableTextCount < requiredStable) return false;
 
     // Complete response
     chrome.runtime.sendMessage({
@@ -591,6 +632,7 @@ function startResponseObserver() {
       "Round " + currentRound + ": Got response (" + text.length + " chars)"
     );
     lastMessageCount = messages.length;
+    lastCapturedText = text;
 
     if (observer) {
       observer.disconnect();
@@ -626,8 +668,7 @@ function startResponseObserver() {
     console.warn("[" + PROVIDER + "] MutationObserver failed:", e);
   }
 
-  // Polling fallback (every 2 seconds)
-  responseCheckInterval = setInterval(checkForResponse, 2000);
+  responseCheckInterval = setInterval(checkForResponse, 1000);
 
   // Expose for background nudge mechanism
   _activeCheckFn = checkForResponse;
