@@ -13,7 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-<<<<<<< HEAD:docs/dev/CHANGELOG.md
 ## [0.3.2] - 2026-02-21 - Wire Memory System into Extension Mode + Local DB Setup
 
 ### Added
@@ -105,7 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Important Note
 - PostgreSQL with pgvector extension must be installed and configured for the memory system to function. The dashboard gracefully falls back to a "Database Not Connected" state when PG is unavailable. See `.env.example` for required environment variables and run `npm run db:setup` to initialize the schema.
-=======
+
 ## [0.3.0] - 2026-02-23 - Chat UI redesign and robust round-sync scraping fix
 
 ### Added
@@ -179,8 +178,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ChatGPT's reasoning models (o-series) wrap response content in DOM containers with class names like `thought-*`. The previous `[class*="thought"]` noise selector inadvertently matched and removed these containers, stripping all paragraph text and leaving only inline `<strong>` elements.
 - Gemini's web app architecture renders responses by mutating an existing `model-response` element rather than appending new DOM nodes. The previous scraper relied on `messages.length > lastMessageCount` which never triggered, causing an infinite wait.
 - Both providers had overly broad loading/thinking detection that could latch onto unrelated UI elements on the page, causing the scraper to wait indefinitely.
->>>>>>> origin/feature:CHANGELOG.md
-
 ---
 
 ## [0.2.5] - 2026-02-16 - Harden extension-mode WS reliability and start gating
